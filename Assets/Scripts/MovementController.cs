@@ -39,12 +39,22 @@ public class MovementController : MonoBehaviour {
             }
         }
 
+        
+       
         if (Input.GetKeyDown(KeyCode.Q)) {
+            
+            
+            Vector3 above_snake = this.transform.position; //used to stop player from uncrouching when underneath something
+            above_snake.y += this.transform.lossyScale.z / 2F + .01F;
+            Debug.DrawRay(above_snake,  this.transform.forward * -2);
+
             if (curr_state == movementState.run) {
                 body.transform.Rotate(new Vector3(90f, 0f, 0f));
                 body.transform.position = new Vector3(body.transform.position.x, .25f, body.transform.position.z);
                 curr_state = movementState.crawl;
-            } else if (curr_state == movementState.crawl) {
+            }
+            else if (curr_state == movementState.crawl && !Physics.Raycast(above_snake, this.transform.forward * -2))
+            {
                 body.transform.Rotate(new Vector3(-90f, 0f, 0f));
                 body.transform.position = new Vector3(body.transform.position.x, 1f, body.transform.position.z);
                 curr_state = movementState.run;
