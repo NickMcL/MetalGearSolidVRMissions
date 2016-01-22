@@ -88,13 +88,23 @@ public class Enemy : MonoBehaviour {
         int cur_vertex = 0;
         float current_angle = -detect_angle;
         float angle_delta = (detect_angle * 2) / (detect_parimeter_arc_vertices - 1);
+        bool hit;
+        Vector3 arc_offset;
         Vector3 arc_vertex;
+        RaycastHit ray_hit;
 
         detect_area_parimeter.SetPosition(cur_vertex++, gameObject.transform.position);
         for (int i = 0; i < detect_parimeter_arc_vertices; ++i) {
-            arc_vertex = Quaternion.Euler(0, current_angle, 0) * gameObject.transform.forward * detect_range;
+            arc_offset = Quaternion.Euler(0, current_angle, 0) * gameObject.transform.forward * detect_range;
+            hit = Physics.Raycast(this.transform.position, arc_offset, out ray_hit, detect_range);
+            if (hit && ray_hit.collider.gameObject.tag == "Obstacle") {
+                arc_vertex = ray_hit.point;
+            } else {
+                arc_vertex = gameObject.transform.position + arc_offset;
+            }
+
+            detect_area_parimeter.SetPosition(cur_vertex++, arc_vertex);
             current_angle += angle_delta;
-            detect_area_parimeter.SetPosition(cur_vertex++, gameObject.transform.position + arc_vertex);
         }
         detect_area_parimeter.SetPosition(cur_vertex, gameObject.transform.position);
     }
