@@ -29,8 +29,8 @@ public class Enemy : MonoBehaviour {
     int detect_parimeter_arc_vertices = 10;
     int detect_parimeter_total_vertices = 12;
 
-	// Use this for initialization
-	void Start () {
+    // Use this for initialization
+    void Start() {
         body = gameObject.GetComponent<Rigidbody>();
         mesh_agent = gameObject.GetComponent<NavMeshAgent>();
         default_color = this.GetComponent<Renderer>().material.color;
@@ -39,17 +39,18 @@ public class Enemy : MonoBehaviour {
         detect_area_parimeter.SetVertexCount(detect_parimeter_total_vertices);
 
         current_state = EnemyState.PATROL;
-	}
-	
-	// Update is called once per frame
-	void Update () {
+    }
+
+    // Update is called once per frame
+    void Update() {
         drawDetectParimeter();
         if (current_state == EnemyState.PATROL) {
             patrolUpdate();
-        } else if (current_state == EnemyState.SEE_PLAYER) {
+        }
+        else if (current_state == EnemyState.SEE_PLAYER) {
             seePlayerUpdate();
         }
-	}
+    }
 
     void patrolUpdate() {
         // Move along patrol route
@@ -99,7 +100,8 @@ public class Enemy : MonoBehaviour {
             hit = Physics.Raycast(this.transform.position, arc_offset, out ray_hit, detect_range);
             if (hit && ray_hit.collider.gameObject.tag == "Obstacle") {
                 arc_vertex = ray_hit.point;
-            } else {
+            }
+            else {
                 arc_vertex = gameObject.transform.position + arc_offset;
             }
 
@@ -126,4 +128,12 @@ public class Enemy : MonoBehaviour {
     public void setPatrolPoint(GameObject new_patrol_point) {
         current_patrol_point = new_patrol_point;
     }
+    public void investigate(GameObject new_patrol_point) {
+
+    }
+    void findRoute(GameObject new_patrol_point) {
+
+    }
+
+    
 }
