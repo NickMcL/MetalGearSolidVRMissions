@@ -75,10 +75,12 @@ public class PatrolPoint : MonoBehaviour {
             if (waiting<1 && !start)
                 cease_exist();
             if (announced==false && start==false) {
+                neighbors.RemoveAll(x => x.point==null);
                 foreach (Neighbor neighbor in neighbors) {
                     // point.GetComponent<PatrolPoint>().add_friend(this.gameObject, Hit.distance);
                     Neighbor me=new Neighbor(this.gameObject, neighbor.distance);
                     neighbor.point.GetComponent<PatrolPoint>().neighbors.Add(me);
+                    neighbor.point.GetComponent<PatrolPoint>().neighbors.Reverse();
                 }
                 announced=true;
             }
@@ -122,8 +124,17 @@ public class PatrolPoint : MonoBehaviour {
                     waiting--;
                 else
                     cease_exist();
-
-
+            }
+        }
+    }
+    void OnTriggerStay(Collider coll) {
+        if (coll.gameObject.tag == "Enemy"&&coll.GetComponent<Enemy>().current_patrol_point==this.gameObject) {
+            coll.gameObject.GetComponent<Enemy>().setPatrolPoint(next_patrol_point);
+            if (!start&& !in_use) {
+                if (waiting>0)
+                    waiting--;
+                else
+                    cease_exist();
             }
         }
     }
