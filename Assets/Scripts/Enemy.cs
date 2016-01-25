@@ -16,7 +16,7 @@ public class Enemy : MonoBehaviour {
 
     public float detect_delay = 0.5f;
     public float undetect_delay = 1f;
-    List<GameObject> search_path;
+   public  List<GameObject> search_path;
     List<GameObject> possible_path;
     public Color default_color;
     public Color surprised_color = Color.yellow;
@@ -24,6 +24,7 @@ public class Enemy : MonoBehaviour {
     public GameObject current_patrol_point;
     public GameObject investigate_point;
     GameObject current_point;
+
 
     bool ____________________;  // Divider for the inspector
 
@@ -47,6 +48,7 @@ public class Enemy : MonoBehaviour {
         current_state = EnemyState.PATROL;
         search_path=new List<GameObject>();
         possible_path=new List<GameObject>();
+
     }
 
     // Update is called once per frame
@@ -58,10 +60,34 @@ public class Enemy : MonoBehaviour {
         else if (current_state == EnemyState.SEE_PLAYER) {
             seePlayerUpdate();
         }
+        else if (current_state == EnemyState.INVESTIGATE) {
+           
+            if (investigate_point == null || investigate_point.GetComponent<PatrolPoint>().dead) {
+                current_state=EnemyState.PATROL;
+                investigate_point = null;
+                return;
+            }
+            if (search_path.Count == 0 &&investigate_point.GetComponent<PatrolPoint>().announced) {
+                float shortest = 9999999;
+                float current_dist=0;
+                possible_path.Clear();
+                possible_path=new List<GameObject>();
+                //     UnityEditor.EditorApplication.isPaused = true;
+                current_point.GetComponent<PatrolPoint>().neighbors.RemoveAll(x => x.point==null);
+                findRoute(current_point, ref shortest, ref current_dist);
+                search_path.Remove(search_path.FirstOrDefault());
+                current_patrol_point=search_path.FirstOrDefault();
+                //setPatrolPoint(current_patrol_point);
+                
+                
+            }
+            patrolUpdate();
+        }
     }
 
     void patrolUpdate() {
         // Move along patrol route
+        if (current_patrol_point!=null)
         mesh_agent.destination = current_patrol_point.transform.position;
 
         // Check if player can now be seen
@@ -137,7 +163,7 @@ public class Enemy : MonoBehaviour {
         current_patrol_point = new_patrol_point;
         else if(current_state == EnemyState.INVESTIGATE) {
             GameObject next_point=search_path.FirstOrDefault();
-            if (new_patrol_point == next_point) {
+            if (current_patrol_point == next_point) {
                 search_path.Remove(next_point);
                 current_patrol_point = search_path.FirstOrDefault();
             }
@@ -150,31 +176,39 @@ public class Enemy : MonoBehaviour {
         current_state=EnemyState.INVESTIGATE;
         investigate_point=new_point;
         current_point = Instantiate(waypoint_prefab, transform.position, Quaternion.identity) as GameObject;
-        float shortest = 9999999;
-        float current_dist=0;
-        possible_path.Clear();
-        findRoute(current_point, ref shortest, ref current_dist);
+        current_point.name="last_pos_of_"+this.gameObject.name;
+        current_point.GetComponent<PatrolPoint>().in_use=true;
+        
+        
 
     }
 
-    void findRoute(GameObject current_point, ref float shortest, ref float current_dist) {
-        possible_path.Add(current_point);
-        if (current_point==investigate_point) {
+    void findRoute(GameObject current_path_point, ref float shortest, ref float current_dist) {
+        current_path_point.GetComponent<PatrolPoint>().in_use= true;
+        current_path_point.GetComponent<PatrolPoint>().neighbors.RemoveAll(x => x.point==null);
+        possible_path.Add(current_path_point);
+        if (current_path_point==investigate_point) {
             shortest =current_dist;
-            search_path=possible_path;
+            search_path=possible_path.ToList();
             return;
         }
-        foreach (Neighbor next in current_point.GetComponent<PatrolPoint>().neighbors) {
-            
+
+        UnityEditor.EditorApplication.isPaused = true;
+        
+        foreach (Neighbor next in current_path_point.GetComponent<PatrolPoint>().neighbors) {
+            if (possible_path.Contains(next.point))
+                continue;
             current_dist+=next.distance;
             if (current_dist<shortest) {
-                if(!current_point.GetComponent<PatrolPoint>().neighbors.Contains(next))
+                Debug.DrawLine(current_path_point.transform.position, next.point.transform.position,Color.red,1f);
                 findRoute(next.point, ref shortest, ref current_dist);
             }
             current_dist-=next.distance;
             
         }
-        possible_path.Remove(current_point);
+        
+        possible_path.Remove(current_path_point);
+        current_path_point.GetComponent<PatrolPoint>().in_use= false;
 
     }
 
