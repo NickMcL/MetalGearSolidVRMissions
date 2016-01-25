@@ -1,13 +1,16 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 public class MovementController : MonoBehaviour {
     // Key codes
+    public GameObject waypoint_prefab;
     const KeyCode UP_KEY = KeyCode.UpArrow;
     const KeyCode LEFT_KEY = KeyCode.LeftArrow;
     const KeyCode DOWN_KEY = KeyCode.DownArrow;
     const KeyCode RIGHT_KEY = KeyCode.RightArrow;
     const KeyCode CRAWL_KEY = KeyCode.Q;
+    const KeyCode ATTACK_KEY = KeyCode.A;
 
     public static MovementController player;  // Singleton
 
@@ -30,6 +33,11 @@ public class MovementController : MonoBehaviour {
 	// Update is called once per frame
 	void Update () {
         moveFromInput();
+
+        if (Input.GetKey(ATTACK_KEY)) {
+            Knock();
+        }
+
         if (Input.GetKeyDown(CRAWL_KEY)) {
             toggleCrawl();
         }
@@ -59,6 +67,26 @@ public class MovementController : MonoBehaviour {
         }
     }
 
+    void Knock() {
+        GameObject[] all_Enemy= GameObject.FindGameObjectsWithTag("Enemy");
+        float range = 10f;
+        GameObject[] all_point= GameObject.FindGameObjectsWithTag("Waypoint");
+        foreach (GameObject point in all_point) {
+            if (point.transform.position==transform.position)
+                return;
+        }
+        
+        GameObject current_player_point = Instantiate(waypoint_prefab, transform.position, Quaternion.identity) as GameObject;
+        foreach (GameObject grunt in all_Enemy) {
+
+            Vector3 to_player = grunt.transform.position-transform.position;
+            if (to_player.magnitude < range) {
+                grunt.GetComponent<Enemy>().investigate(current_player_point);
+                current_player_point.GetComponent<PatrolPoint>().waiting++;
+            }
+        
+        }
+    }
     void toggleCrawl() {
         Vector3 above_snake = this.transform.position; //used to stop player from uncrouching when underneath something
         above_snake.y += this.transform.lossyScale.z / 2F + .01F;

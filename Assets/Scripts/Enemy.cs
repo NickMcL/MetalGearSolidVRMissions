@@ -1,9 +1,12 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 
 public enum EnemyState {
     PATROL,
-    SEE_PLAYER
+    SEE_PLAYER,
+    INVESTIGATE
 };
 
 public class Enemy : MonoBehaviour {
@@ -13,11 +16,14 @@ public class Enemy : MonoBehaviour {
 
     public float detect_delay = 0.5f;
     public float undetect_delay = 1f;
-
+    List<GameObject> search_path;
+    List<GameObject> possible_path;
     public Color default_color;
     public Color surprised_color = Color.yellow;
-
+    public GameObject waypoint_prefab;
     public GameObject current_patrol_point;
+    public GameObject investigate_point;
+    GameObject current_point;
 
     bool ____________________;  // Divider for the inspector
 
@@ -39,6 +45,8 @@ public class Enemy : MonoBehaviour {
         detect_area_parimeter.SetVertexCount(detect_parimeter_total_vertices);
 
         current_state = EnemyState.PATROL;
+        search_path=new List<GameObject>();
+        possible_path=new List<GameObject>();
     }
 
     // Update is called once per frame
@@ -73,8 +81,7 @@ public class Enemy : MonoBehaviour {
 
     bool playerInFieldOfView() {
         RaycastHit see_player;
-        Vector3 to_player = MovementController.player.transform.position -
-            gameObject.transform.position;
+        Vector3 to_player = MovementController.player.transform.position - transform.position;
 
         Physics.Raycast(this.transform.position, to_player, out see_player);
         if (Vector3.Angle(this.transform.forward, to_player) < detect_angle &&
@@ -126,12 +133,48 @@ public class Enemy : MonoBehaviour {
     }
 
     public void setPatrolPoint(GameObject new_patrol_point) {
+        if(current_state == EnemyState.PATROL)
         current_patrol_point = new_patrol_point;
+        else if(current_state == EnemyState.INVESTIGATE) {
+            GameObject next_point=search_path.FirstOrDefault();
+            if (new_patrol_point == next_point) {
+                search_path.Remove(next_point);
+                current_patrol_point = search_path.FirstOrDefault();
+            }
+        }
     }
-    public void investigate(GameObject new_patrol_point) {
+    
+
+    
+    public void investigate(GameObject new_point) {
+        current_state=EnemyState.INVESTIGATE;
+        investigate_point=new_point;
+        current_point = Instantiate(waypoint_prefab, transform.position, Quaternion.identity) as GameObject;
+        float shortest = 9999999;
+        float current_dist=0;
+        possible_path.Clear();
+        findRoute(current_point, ref shortest, ref current_dist);
 
     }
-    void findRoute(GameObject new_patrol_point) {
+
+    void findRoute(GameObject current_point, ref float shortest, ref float current_dist) {
+        possible_path.Add(current_point);
+        if (current_point==investigate_point) {
+            shortest =current_dist;
+            search_path=possible_path;
+            return;
+        }
+        foreach (Neighbor next in current_point.GetComponent<PatrolPoint>().neighbors) {
+            
+            current_dist+=next.distance;
+            if (current_dist<shortest) {
+                if(!current_point.GetComponent<PatrolPoint>().neighbors.Contains(next))
+                findRoute(next.point, ref shortest, ref current_dist);
+            }
+            current_dist-=next.distance;
+            
+        }
+        possible_path.Remove(current_point);
 
     }
 
