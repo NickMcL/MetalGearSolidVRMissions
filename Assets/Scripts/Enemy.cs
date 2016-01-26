@@ -13,8 +13,6 @@ public class Enemy : MonoBehaviour {
     public float speed = 10f;
     public float detect_range = 5f; // Max detection range
     public float detect_angle = 30f;
-
-    public float detect_delay = 0.5f;
     public float undetect_delay = 1f;
     public List<GameObject> search_path;
     List<GameObject> possible_path;
@@ -27,6 +25,7 @@ public class Enemy : MonoBehaviour {
     GameObject patrol_return_point;
     GameObject old_prp;
     Vector3 last_position;
+    public LayerMask player_and_walls;
 
     bool ____________________;  // Divider for the inspector
 
@@ -120,8 +119,7 @@ public class Enemy : MonoBehaviour {
     bool playerInFieldOfView() {
         RaycastHit see_player;
         Vector3 to_player = MovementController.player.transform.position - transform.position;
-
-        Physics.Raycast(this.transform.position, to_player, out see_player);
+        Physics.Raycast(this.transform.position, to_player, out see_player,player_and_walls );
         if (Vector3.Angle(this.transform.forward, to_player) < detect_angle &&
                 see_player.collider.gameObject.tag == "Player" && see_player.distance < detect_range) {
             Debug.DrawRay(this.transform.position, to_player);
@@ -177,14 +175,14 @@ public class Enemy : MonoBehaviour {
             GameObject next_point=search_path.FirstOrDefault();
             if (current_patrol_point == next_point) {
                 search_path.Remove(next_point);
-                
-            
+
+
                 if (search_path.Count()==0&& current_patrol_point==investigate_point) {
-                   /*
-                    current_state=EnemyState.PATROL;
-                    current_patrol_point=original_patrol_point;
-                    investigate_point=null;
-                    * */
+                    /*
+                     current_state=EnemyState.PATROL;
+                     current_patrol_point=original_patrol_point;
+                     investigate_point=null;
+                     * */
                     resume_patrol();
                     return;
                 }
@@ -212,7 +210,8 @@ public class Enemy : MonoBehaviour {
             original_patrol_point=current_patrol_point;
         }
         else {
-           if(investigate_point!=null) investigate_point.GetComponent<PatrolPoint>().waiting--;
+            if (investigate_point!=null)
+                investigate_point.GetComponent<PatrolPoint>().waiting--;
             investigate_point=new_point;
             search_path.Clear();
         }
@@ -227,7 +226,7 @@ public class Enemy : MonoBehaviour {
         patrol_return_point = Instantiate(waypoint_prefab, transform.position, Quaternion.identity) as GameObject;
         patrol_return_point.name="last_pos_of_"+this.gameObject.name;
         patrol_return_point.GetComponent<PatrolPoint>().in_use=true;
-        
+
 
     }
 
