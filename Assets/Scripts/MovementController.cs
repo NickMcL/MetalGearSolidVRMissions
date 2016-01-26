@@ -9,6 +9,12 @@ public class MovementController : MonoBehaviour {
     const KeyCode RIGHT_KEY = KeyCode.RightArrow;
     const KeyCode CRAWL_KEY = KeyCode.Q;
 
+    // Player collider values
+    Vector3 PLAYER_STANDING_COLLIDER_CENTER = new Vector3(0f, 0.5f, 0f);
+    Vector3 PLAYER_STANDING_COLLIDER_SIZE = new Vector3(1f, 2f, 1f);
+    Vector3 PLAYER_CRAWLING_COLLIDER_CENTER = new Vector3(0f, 0f, 0f);
+    Vector3 PLAYER_CRAWLING_COLLIDER_SIZE = new Vector3(1f, 1f, 1f);
+
     public static MovementController player;  // Singleton
 
     public float speed = 10f;
@@ -42,7 +48,7 @@ public class MovementController : MonoBehaviour {
             else if (move_state == movementState.AGAINST_WALL) {
                 updateAgainstWall();
             }
-        } else {
+        } else if (move_state != movementState.CRAWL) {
             move_state = movementState.RUN;
             locked_direction = Vector3.zero;
         }
@@ -116,8 +122,8 @@ public class MovementController : MonoBehaviour {
 
         hit = Physics.Raycast(start_vector, body.transform.forward * -1f, out hit_info);
         if (hit && hit_info.collider.gameObject.tag == "Obstacle") {
-            this.transform.position = this.transform.position + 
-                    ((body.transform.forward * -1f) * (hit_info.distance - this.transform.localScale.z / 2f));
+            this.transform.position += ((body.transform.forward * -1f) *
+                    (hit_info.distance - this.transform.localScale.z / 2f));
         }
     }
 
@@ -144,17 +150,25 @@ public class MovementController : MonoBehaviour {
     }
 
     void toggleCrawl() {
+        BoxCollider player_collider = gameObject.GetComponent<BoxCollider>();
         Vector3 above_snake = this.transform.position; //used to stop player from uncrouching when underneath something
-        above_snake.y += this.transform.lossyScale.z / 2f + .01f;
-        Debug.DrawRay(above_snake,  this.transform.forward * -2);
+        above_snake.y += (this.transform.localScale.z / 2f) + .01f;
 
         if (move_state != movementState.CRAWL) {
-            body.transform.Rotate(new Vector3(90f, 0f, 0f));
+            player_collider.center = PLAYER_CRAWLING_COLLIDER_CENTER;
+            player_collider.size = PLAYER_CRAWLING_COLLIDER_SIZE;
             body.transform.position = new Vector3(body.transform.position.x, .25f, body.transform.position.z);
+            if (move_state == movementState.AGAINST_WALL) {
+                // Move off of the wall before lying down to crawl
+                body.transform.position += body.transform.forward * (this.transform.localScale.y / 2f);
+            }
+            body.transform.Rotate(new Vector3(90f, 0f, 0f));
             move_state = movementState.CRAWL;
-        } else if (move_state == movementState.CRAWL && !Physics.Raycast(above_snake, this.transform.forward * -2)) {
-            body.transform.Rotate(new Vector3(-90f, 0f, 0f));
+        } else if (move_state == movementState.CRAWL && !Physics.Raycast(above_snake, this.transform.forward * -1f)) {
+            player_collider.center = PLAYER_STANDING_COLLIDER_CENTER;
+            player_collider.size = PLAYER_STANDING_COLLIDER_SIZE;
             body.transform.position = new Vector3(body.transform.position.x, 1f, body.transform.position.z);
+            body.transform.Rotate(new Vector3(-90f, 0f, 0f));
             move_state = movementState.RUN;
         }
     }
