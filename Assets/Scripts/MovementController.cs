@@ -98,12 +98,26 @@ public class MovementController : MonoBehaviour {
             if (!movingDiagonal()) {
                 move_state = movementState.AGAINST_WALL;
                 body.transform.rotation = Quaternion.LookRotation(locked_direction * -1);
+                moveBackAgainstWall();
             }
             zeroMovementInLockedDirection();
 
         } else if (movingOppositeOfLockedDirection()) {
             locked_direction = Vector3.zero;
             move_state = movementState.RUN;
+        }
+    }
+
+    void moveBackAgainstWall() {
+        bool hit;
+        RaycastHit hit_info;
+        Vector3 start_vector = this.transform.position;
+        start_vector.y += 1.25f;
+
+        hit = Physics.Raycast(start_vector, body.transform.forward * -1f, out hit_info);
+        if (hit && hit_info.collider.gameObject.tag == "Obstacle") {
+            this.transform.position = this.transform.position + 
+                    ((body.transform.forward * -1f) * (hit_info.distance - this.transform.localScale.z / 2f));
         }
     }
 
@@ -152,6 +166,7 @@ public class MovementController : MonoBehaviour {
             foreach (ContactPoint contact in coll.contacts) {
                 if (contact.normal.x != 0 || contact.normal.z != 0) {
                     locked_direction = coll.contacts[0].normal * -1;
+                    locked_direction.y = 0;
                     break;
                 }
             }
