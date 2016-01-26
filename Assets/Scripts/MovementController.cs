@@ -57,6 +57,10 @@ public class MovementController : MonoBehaviour {
         if (Input.GetKeyDown(CRAWL_KEY)) {
             toggleCrawl();
         }
+
+        if (move_state == movementState.AGAINST_WALL) {
+            moveCameraIfByWallEdge();
+        }
 	}
 
     void setVelocityFromInput() {
@@ -128,11 +132,18 @@ public class MovementController : MonoBehaviour {
     }
 
     void updateAgainstWall() {
-        if (movingInLockedDirection()) {
-            zeroMovementInLockedDirection();
-        } else if (movingOppositeOfLockedDirection()) {
+        if (movingOppositeOfLockedDirection()) {
             locked_direction = Vector3.zero;
             move_state = movementState.RUN;
+            return;
+        } 
+
+        if (!movingInLockedDirection()) {
+            this.transform.position += this.transform.forward * 0.5f;
+            locked_direction = Vector3.zero;
+            move_state = movementState.RUN;
+        } else {
+            zeroMovementInLockedDirection();
         }
     }
 
@@ -171,6 +182,10 @@ public class MovementController : MonoBehaviour {
             body.transform.Rotate(new Vector3(-90f, 0f, 0f));
             move_state = movementState.RUN;
         }
+    }
+
+    void moveCameraIfByWallEdge() {
+
     }
 
     void OnCollisionEnter(Collision coll) {
