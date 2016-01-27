@@ -2,55 +2,139 @@
 using System.Collections;
 using System.Collections.Generic;
 
+public struct Neighbor {
+    public GameObject point;
+    public float distance;
+    //Waypoint object, Distance
+
+    public Neighbor(GameObject p, float d) {
+        point = p;
+        distance=d;
+    }
+    /*
+       public override bool Equals(object obj) {
+           return obj is Neighbor && this == (Neighbor)obj;
+       }
+       public override int GetHashCode() {
+           return point.GetHashCode() ^ distance.GetHashCode();
+       }
+       public static bool operator ==(Neighbor x, Neighbor y) {
+           return x.point == y.point;
+       }
+       public static bool operator !=(Neighbor x, Neighbor y) {
+           return !(x == y);
+       }
+    */
+
+};
 public class PatrolPoint : MonoBehaviour {
     public GameObject next_patrol_point;
-    public List<GameObject> neighbors;
+    public List<GameObject> N_view;
+    public List<Neighbor> neighbors;
     public bool start;
-    public int waiting = 0;
-
+    public int waiting = 1;
+    public bool announced;
     public LayerMask waypoints_and_walls;
+    public bool in_use;
+    public bool dead = false;
+
     // Use this for initialization
     void Start() {
+        in_use=false;
+        dead = false;
         GameObject[] all_points= GameObject.FindGameObjectsWithTag("Waypoint");
-        List<GameObject> pos_neighbors = new List<GameObject>();
         Vector3 this_point = transform.position;
         float range = 50f;
-
+        announced=false;
+        neighbors = new List<Neighbor>();
+        N_view = new List<GameObject>();
+        //      if (start==false)        UnityEditor.EditorApplication.isPaused = true;
         foreach (GameObject point in all_points) {
             if (point ==this.gameObject)
                 continue;
             Vector3 to_point = point.transform.position-transform.position;
-            Vector3.Normalize(to_point);
+            // Vector3.Normalize(to_point);
             RaycastHit Hit;
             Debug.DrawRay(this_point, to_point);
             if (Physics.Raycast(this_point, to_point, out Hit, range, waypoints_and_walls))
-                if (Hit.collider.gameObject==point)
-                    pos_neighbors.Add(point);
-        }
-        neighbors=pos_neighbors;
+                if (Hit.collider.gameObject==point) {
+                    Neighbor current_neighbor=new Neighbor(point, Hit.distance);
+                    neighbors.Add(current_neighbor);
 
+                }
+
+        }
+        foreach (Neighbor neighbor in neighbors) {
+            N_view.Add(neighbor.point);
+        }
     }
 
     // Update is called once per frame
     void Update() {
+        if (!dead) {
+            if (waiting<1 && !start)
+                cease_exist();
+            if (announced==false && start==false) {
+                neighbors.RemoveAll(x => x.point==null);
+                foreach (Neighbor neighbor in neighbors) {
+                    // point.GetComponent<PatrolPoint>().add_friend(this.gameObject, Hit.distance);
+                    Neighbor me=new Neighbor(this.gameObject, neighbor.distance);
+                    neighbor.point.GetComponent<PatrolPoint>().neighbors.Add(me);
+                    neighbor.point.GetComponent<PatrolPoint>().neighbors.Reverse();
+                }
+                announced=true;
+            }
+        }
+    }
+    /*
+    void add_friend(GameObject friend, float distance) {
+        Neighbor current_neighbor=new Neighbor(friend, distance);
+        neighbors.Add(current_neighbor);
+    }
+      */
+    void forget_friend(GameObject friend) {
+        neighbors.RemoveAll(x => x.point==null);
+        neighbors.RemoveAll(x => x.point==friend);
 
     }
-    void forget_friend (GameObject friend){
-        neighbors.Remove(friend);
+    void cease_exist() {
+        if (!in_use) {
+
+            Vector3 down = transform.position;
+            down.y =-20;
+            transform.position=down;
+            neighbors.RemoveAll(x => x.point==null);
+            foreach (Neighbor neighbor in neighbors) {
+
+                neighbor.point.GetComponent<PatrolPoint>().forget_friend(this.gameObject);
+            }
+            dead = true;
+            Invoke("final_destroy", 1f);
+        }
     }
+    void final_destroy() {
+        Destroy(this.gameObject);
+    }
+
     void OnTriggerEnter(Collider coll) {
-        if (coll.gameObject.tag == "Enemy") {
+        if (coll.gameObject.tag == "Enemy"&&coll.GetComponent<Enemy>().current_patrol_point==this.gameObject) {
             coll.gameObject.GetComponent<Enemy>().setPatrolPoint(next_patrol_point);
-            if (!start) {
+            if (!start&& !in_use) {
                 if (waiting>0)
                     waiting--;
-                else {
-                    foreach (GameObject neighbor in neighbors) {
-                        neighbor.GetComponent<PatrolPoint>().forget_friend(this.gameObject);
-                    }
-                    Destroy(this);
-                }
-                    
+                else
+                    cease_exist();
+            }
+        }
+    }
+    void OnTriggerStay(Collider coll) {
+        if (coll.gameObject.tag == "Enemy"&&coll.GetComponent<Enemy>().current_patrol_point==this.gameObject) {
+            coll.gameObject.GetComponent<Enemy>().setPatrolPoint(next_patrol_point);
+            if (!start&& !in_use) {
+                if (waiting>0)
+                    waiting--;
+                else
+                    cease_exist();
             }
         }
     }

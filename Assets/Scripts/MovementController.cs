@@ -1,13 +1,18 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 public class MovementController : MonoBehaviour {
     // Key codes
+    public GameObject waypoint_prefab;
     const KeyCode UP_KEY = KeyCode.UpArrow;
     const KeyCode LEFT_KEY = KeyCode.LeftArrow;
     const KeyCode DOWN_KEY = KeyCode.DownArrow;
     const KeyCode RIGHT_KEY = KeyCode.RightArrow;
     const KeyCode CRAWL_KEY = KeyCode.Q;
+    const KeyCode ATTACK_KEY = KeyCode.A;
+    float poscount = 0;
+    bool knock_lock;
 
     // Player collider values
     Vector3 PLAYER_STANDING_COLLIDER_CENTER = new Vector3(0f, 0.5f, 0f);
@@ -35,11 +40,11 @@ public class MovementController : MonoBehaviour {
     bool hit_corner = false;
     bool under_obstacle = false;
 
-	// Use this for initialization
-	void Start () {
+    // Use this for initialization
+    void Start() {
         player = this;
         body = gameObject.GetComponent<Rigidbody>();
-	}
+    }
 
 	// Update is called once per frame
 	void Update () {
@@ -51,6 +56,14 @@ public class MovementController : MonoBehaviour {
             updateForwardDirection();
         }
 
+        if (Input.GetKey(ATTACK_KEY)) {
+            if (!knock_lock) {
+                knock_lock = true;
+                Invoke("unlock_knock", 1f);
+                Knock();
+            }
+        }
+
         if (Input.GetKeyDown(CRAWL_KEY)) {
             toggleCrawl();
         }
@@ -58,6 +71,10 @@ public class MovementController : MonoBehaviour {
         adjustCamera();
         adjustPlayerCollider();
 	}
+
+    void unlock_knock() {
+        knock_lock = false;
+    }
 
     void setVelocityFromInput() {
         Vector3 vel = Vector3.zero;
@@ -195,6 +212,31 @@ public class MovementController : MonoBehaviour {
         }
     }
 
+    void Knock() {
+        GameObject[] all_Enemy= GameObject.FindGameObjectsWithTag("Enemy");
+        float range = 20f;
+        GameObject[] all_point= GameObject.FindGameObjectsWithTag("Waypoint");
+        foreach (GameObject point in all_point) {
+            if (point.transform.position==transform.position)
+                return;
+        }
+
+        GameObject current_player_point = Instantiate(waypoint_prefab, transform.position, Quaternion.identity) as GameObject;
+        
+        current_player_point.name="player_pos"+poscount++;
+        
+        foreach (GameObject grunt in all_Enemy) {
+
+            Vector3 to_player = grunt.transform.position-transform.position;
+            if (to_player.magnitude < range) {
+                grunt.GetComponent<Enemy>().investigate(current_player_point);
+                current_player_point.GetComponent<PatrolPoint>().waiting++;
+            }
+
+        }
+        current_player_point.GetComponent<PatrolPoint>().waiting--;
+    }
+    
     void toggleCrawl() {
         if (move_state != movementState.CRAWL) {
             body.transform.position = new Vector3(body.transform.position.x, .25f, body.transform.position.z);
