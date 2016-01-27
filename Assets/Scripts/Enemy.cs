@@ -84,7 +84,7 @@ public class Enemy : MonoBehaviour {
             }
             if (investigate_point==old_prp) {
                 float shortest = 9999999;
-                float current_dist=0;
+                float current_dist = 0;
                 possible_path.Clear();
                 possible_path=new List<GameObject>();
                 patrol_return_point.GetComponent<PatrolPoint>().neighbors.RemoveAll(x => x.point==null);
@@ -104,7 +104,7 @@ public class Enemy : MonoBehaviour {
 
         // Check if player can now be seen
         if (playerInFieldOfView()) {
-            Invoke("detectPlayer", detect_delay);
+            detectPlayer();
         }
     }
 
