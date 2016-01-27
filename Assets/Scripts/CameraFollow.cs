@@ -11,6 +11,8 @@ public class CameraFollow : MonoBehaviour {
 	
 	// Update is called once per frame
 	void Update () {
-        gameObject.transform.position = player.transform.position;
+        if (CameraController.cam_control.shouldFollowPlayer()) {
+            gameObject.transform.position = player.transform.position;
+        }
 	}
 }

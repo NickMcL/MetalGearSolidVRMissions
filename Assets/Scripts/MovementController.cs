@@ -14,10 +14,13 @@ public class MovementController : MonoBehaviour {
     Vector3 PLAYER_STANDING_COLLIDER_SIZE = new Vector3(1f, 2f, 1f);
     Vector3 PLAYER_CRAWLING_COLLIDER_CENTER = new Vector3(0f, 0f, 0f);
     Vector3 PLAYER_CRAWLING_COLLIDER_SIZE = new Vector3(1f, 1f, 1f);
+    Vector3 PLAYER_UNDER_OBSTACLE_COLLIDER_CENTER = new Vector3(0f, 0.7f, 0f);
+    Vector3 PLAYER_UNDER_OBSTACLE_COLLIDER_SIZE = new Vector3(1f, 0.4f, 1f);
 
     public static MovementController player;  // Singleton
-
-    public float speed = 10f;
+    public float run_speed = 10f;
+    public float crawl_speed = 2f;
+    public float rot_speed = 10f;
     Rigidbody body;
 
     public enum movementState {
@@ -30,6 +33,7 @@ public class MovementController : MonoBehaviour {
 
     public Vector3 locked_direction;
     bool hit_corner = false;
+    bool under_obstacle = false;
 
 	// Use this for initialization
 	void Start () {
@@ -39,28 +43,20 @@ public class MovementController : MonoBehaviour {
 
 	// Update is called once per frame
 	void Update () {
-        setVelocityFromInput();
-        if (nextToObstacle() || hit_corner) {
-            hit_corner = false;
-            if (move_state == movementState.ALONG_WALL) {
-                updateAlongWall();
-            }
-            else if (move_state == movementState.AGAINST_WALL) {
-                updateAgainstWall();
-            }
-        } else if (move_state != movementState.CRAWL) {
-            move_state = movementState.RUN;
-            locked_direction = Vector3.zero;
+        if (under_obstacle) {
+            updateUnderObstacleTransformFromInput();
+        } else {
+            setVelocityFromInput();
+            updateWallMovement();
+            updateForwardDirection();
         }
-        updateForwardDirection();
 
         if (Input.GetKeyDown(CRAWL_KEY)) {
             toggleCrawl();
         }
 
-        if (move_state == movementState.AGAINST_WALL) {
-            moveCameraIfByWallEdge();
-        }
+        adjustCamera();
+        adjustPlayerCollider();
 	}
 
     void setVelocityFromInput() {
@@ -77,7 +73,46 @@ public class MovementController : MonoBehaviour {
         if (Input.GetKey(RIGHT_KEY)) {
             vel.x += 1;  // Move right
         }
-        body.velocity = vel.normalized * speed;
+
+        if (move_state == movementState.CRAWL) {
+            body.velocity = vel.normalized * crawl_speed;
+        } else {
+            body.velocity = vel.normalized * run_speed;
+        }
+    }
+
+    void updateUnderObstacleTransformFromInput() {
+        Vector3 vel = Vector3.zero;
+        if (Input.GetKey(LEFT_KEY)) {
+            this.transform.Rotate(Vector3.forward * rot_speed * Time.deltaTime);  // Rotate left
+        }
+        if (Input.GetKey(RIGHT_KEY)) {
+            this.transform.Rotate(-Vector3.forward * rot_speed * Time.deltaTime);  // Rotate right
+        }
+        if (Input.GetKey(UP_KEY)) {
+            vel += this.transform.up;  // Move forward
+        }
+        if (Input.GetKey(DOWN_KEY)) {
+            vel -= this.transform.up;  // Move back
+        }
+        body.velocity = vel.normalized * crawl_speed;
+        this.transform.eulerAngles = new Vector3(90f, this.transform.eulerAngles.y,
+            this.transform.eulerAngles.z);
+    }
+
+    void updateWallMovement() {
+        if (nextToObstacle() || hit_corner) {
+            hit_corner = false;
+            if (move_state == movementState.ALONG_WALL) {
+                updateAlongWall();
+            }
+            else if (move_state == movementState.AGAINST_WALL) {
+                updateAgainstWall();
+            }
+        } else if (move_state != movementState.CRAWL) {
+            move_state = movementState.RUN;
+            locked_direction = Vector3.zero;
+        }
     }
 
     bool nextToObstacle() {
@@ -161,13 +196,7 @@ public class MovementController : MonoBehaviour {
     }
 
     void toggleCrawl() {
-        BoxCollider player_collider = gameObject.GetComponent<BoxCollider>();
-        Vector3 above_snake = this.transform.position; //used to stop player from uncrouching when underneath something
-        above_snake.y += (this.transform.localScale.z / 2f) + .01f;
-
         if (move_state != movementState.CRAWL) {
-            player_collider.center = PLAYER_CRAWLING_COLLIDER_CENTER;
-            player_collider.size = PLAYER_CRAWLING_COLLIDER_SIZE;
             body.transform.position = new Vector3(body.transform.position.x, .25f, body.transform.position.z);
             if (move_state == movementState.AGAINST_WALL) {
                 // Move off of the wall before lying down to crawl
@@ -175,17 +204,80 @@ public class MovementController : MonoBehaviour {
             }
             body.transform.Rotate(new Vector3(90f, 0f, 0f));
             move_state = movementState.CRAWL;
-        } else if (move_state == movementState.CRAWL && !Physics.Raycast(above_snake, this.transform.forward * -1f)) {
-            player_collider.center = PLAYER_STANDING_COLLIDER_CENTER;
-            player_collider.size = PLAYER_STANDING_COLLIDER_SIZE;
+        } else if (move_state == movementState.CRAWL &&
+                !Physics.Raycast(this.transform.position, this.transform.forward * -1f)) {
             body.transform.position = new Vector3(body.transform.position.x, 1f, body.transform.position.z);
             body.transform.Rotate(new Vector3(-90f, 0f, 0f));
             move_state = movementState.RUN;
         }
     }
 
-    void moveCameraIfByWallEdge() {
+    void adjustCamera() {
+        bool camera_moved = false;
 
+        if (move_state == movementState.AGAINST_WALL) {
+            camera_moved = moveCameraIfByWallEdge();
+        } else if (move_state == movementState.CRAWL) {
+            camera_moved = moveCameraIfUnderObstacle();
+            under_obstacle = camera_moved;
+        }
+
+        if (!camera_moved) {
+            CameraController.cam_control.moveToOverviewPosition();
+        }
+    }
+
+    bool moveCameraIfByWallEdge() {
+        Vector3 right_check_pos = this.transform.position;
+        Vector3 left_check_pos = this.transform.position;
+        int layer_mask = 1 << LayerMask.NameToLayer("Obstacle");
+        right_check_pos.y += 1.25f;
+        left_check_pos.y += 1.25f;
+
+        right_check_pos += this.transform.right * (1.1f + (this.transform.localScale.x / 2f));
+        right_check_pos += this.transform.forward * -0.5f;
+        left_check_pos += this.transform.right * -(1.1f + (this.transform.localScale.x / 2f));
+        left_check_pos += this.transform.forward * -0.5f;
+
+        Debug.DrawRay(this.transform.position, right_check_pos - this.transform.position);
+        Debug.DrawRay(this.transform.position, left_check_pos - this.transform.position);
+        if (!Physics.CheckSphere(right_check_pos, 0.01f, layer_mask)) {
+            CameraController.cam_control.moveToLookDownHallway(this.transform, true);
+            return true;
+        } else if (!Physics.CheckSphere(left_check_pos, 0.01f, layer_mask)) {
+            CameraController.cam_control.moveToLookDownHallway(this.transform, false);
+            return true;
+        }
+        return false;
+    }
+
+    bool moveCameraIfUnderObstacle() {
+        bool hit;
+        RaycastHit hit_info;
+
+        hit = Physics.Raycast(this.transform.position, this.transform.forward * -1f, out hit_info);
+        if (hit && hit_info.collider.gameObject.tag == "Obstacle") {
+            CameraController.cam_control.moveToUnderObstacle(this.transform);
+            return true;
+        }
+        return false;
+    }
+
+    void adjustPlayerCollider() {
+        BoxCollider player_collider = gameObject.GetComponent<BoxCollider>();
+        if (move_state != movementState.CRAWL) {
+            player_collider.center = PLAYER_STANDING_COLLIDER_CENTER;
+            player_collider.size = PLAYER_STANDING_COLLIDER_SIZE;
+            return;
+        }
+
+        if (under_obstacle) {
+            player_collider.center = PLAYER_UNDER_OBSTACLE_COLLIDER_CENTER;
+            player_collider.size = PLAYER_UNDER_OBSTACLE_COLLIDER_SIZE;
+        } else {
+            player_collider.center = PLAYER_CRAWLING_COLLIDER_CENTER;
+            player_collider.size = PLAYER_CRAWLING_COLLIDER_SIZE;
+        }
     }
 
     void OnCollisionEnter(Collision coll) {
