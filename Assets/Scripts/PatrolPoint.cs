@@ -11,28 +11,13 @@ public struct Neighbor {
         point = p;
         distance=d;
     }
-    /*
-       public override bool Equals(object obj) {
-           return obj is Neighbor && this == (Neighbor)obj;
-       }
-       public override int GetHashCode() {
-           return point.GetHashCode() ^ distance.GetHashCode();
-       }
-       public static bool operator ==(Neighbor x, Neighbor y) {
-           return x.point == y.point;
-       }
-       public static bool operator !=(Neighbor x, Neighbor y) {
-           return !(x == y);
-       }
-    */
-
 };
 public class PatrolPoint : MonoBehaviour {
     public GameObject next_patrol_point;
     public List<GameObject> N_view;
     public List<Neighbor> neighbors;
     public bool start;
-    public int waiting = 1;
+    public bool waiting = true;
     public bool announced;
     public LayerMask waypoints_and_walls;
     public bool in_use;
@@ -48,7 +33,6 @@ public class PatrolPoint : MonoBehaviour {
         announced=false;
         neighbors = new List<Neighbor>();
         N_view = new List<GameObject>();
-        //      if (start==false)        UnityEditor.EditorApplication.isPaused = true;
         foreach (GameObject point in all_points) {
             if (point ==this.gameObject)
                 continue;
@@ -72,12 +56,11 @@ public class PatrolPoint : MonoBehaviour {
     // Update is called once per frame
     void Update() {
         if (!dead) {
-            if (waiting<1 && !start)
+            if (!waiting && !start)
                 cease_exist();
             if (announced==false && start==false) {
                 neighbors.RemoveAll(x => x.point==null);
                 foreach (Neighbor neighbor in neighbors) {
-                    // point.GetComponent<PatrolPoint>().add_friend(this.gameObject, Hit.distance);
                     Neighbor me=new Neighbor(this.gameObject, neighbor.distance);
                     neighbor.point.GetComponent<PatrolPoint>().neighbors.Add(me);
                     neighbor.point.GetComponent<PatrolPoint>().neighbors.Reverse();
@@ -86,12 +69,6 @@ public class PatrolPoint : MonoBehaviour {
             }
         }
     }
-    /*
-    void add_friend(GameObject friend, float distance) {
-        Neighbor current_neighbor=new Neighbor(friend, distance);
-        neighbors.Add(current_neighbor);
-    }
-      */
     void forget_friend(GameObject friend) {
         neighbors.RemoveAll(x => x.point==null);
         neighbors.RemoveAll(x => x.point==friend);
@@ -115,13 +92,13 @@ public class PatrolPoint : MonoBehaviour {
     void final_destroy() {
         Destroy(this.gameObject);
     }
-
+    //want to mage both triggers call a function rather than have same code twice
     void OnTriggerEnter(Collider coll) {
         if (coll.gameObject.tag == "Enemy"&&coll.GetComponent<Enemy>().current_patrol_point==this.gameObject) {
             coll.gameObject.GetComponent<Enemy>().setPatrolPoint(next_patrol_point);
             if (!start&& !in_use) {
-                if (waiting>0)
-                    waiting--;
+                if (waiting)
+                    waiting=false;
                 else
                     cease_exist();
             }
@@ -131,8 +108,8 @@ public class PatrolPoint : MonoBehaviour {
         if (coll.gameObject.tag == "Enemy"&&coll.GetComponent<Enemy>().current_patrol_point==this.gameObject) {
             coll.gameObject.GetComponent<Enemy>().setPatrolPoint(next_patrol_point);
             if (!start&& !in_use) {
-                if (waiting>0)
-                    waiting--;
+                if (waiting)
+                    waiting=false;
                 else
                     cease_exist();
             }

@@ -57,9 +57,9 @@ public class MovementController : MonoBehaviour {
         }
 
         if (Input.GetKey(ATTACK_KEY)) {
-            if (!knock_lock) {
+            if (!knock_lock&& movementState.AGAINST_WALL == move_state) {
                 knock_lock = true;
-                Invoke("unlock_knock", 1f);
+                Invoke("unlock_knock", 1f); //prevents knock spam
                 Knock();
             }
         }
@@ -214,7 +214,7 @@ public class MovementController : MonoBehaviour {
 
     void Knock() {
         GameObject[] all_Enemy= GameObject.FindGameObjectsWithTag("Enemy");
-        float range = 20f;
+        float range = 10f;
         GameObject[] all_point= GameObject.FindGameObjectsWithTag("Waypoint");
         foreach (GameObject point in all_point) {
             if (point.transform.position==transform.position)
@@ -224,17 +224,23 @@ public class MovementController : MonoBehaviour {
         GameObject current_player_point = Instantiate(waypoint_prefab, transform.position, Quaternion.identity) as GameObject;
         
         current_player_point.name="player_pos"+poscount++;
-        
+        GameObject  closest_enemy = gameObject;
+        float closest_distance = range+10f;
         foreach (GameObject grunt in all_Enemy) {
 
             Vector3 to_player = grunt.transform.position-transform.position;
-            if (to_player.magnitude < range) {
-                grunt.GetComponent<Enemy>().investigate(current_player_point);
-                current_player_point.GetComponent<PatrolPoint>().waiting++;
+            if (to_player.magnitude < range &&to_player.magnitude<closest_distance) {
+                closest_distance=to_player.magnitude;
+                closest_enemy = grunt;
             }
 
         }
-        current_player_point.GetComponent<PatrolPoint>().waiting--;
+        if(closest_distance<range+9f)
+        {
+            closest_enemy.GetComponent<Enemy>().investigate(current_player_point);
+            current_player_point.GetComponent<PatrolPoint>().waiting=true;
+        }
+        else        current_player_point.GetComponent<PatrolPoint>().waiting=false;
     }
     
     void toggleCrawl() {
