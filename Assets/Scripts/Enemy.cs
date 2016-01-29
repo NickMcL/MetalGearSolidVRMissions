@@ -62,7 +62,7 @@ public class Enemy : MonoBehaviour {
             flyProgress();
         }
         else if (current_state == EnemyState.KO) {
-            getUp();
+           Invoke("getUp",5f);
         }
         else drawDetectParimeter();
         if (current_state == EnemyState.PATROL) {
@@ -97,15 +97,18 @@ public class Enemy : MonoBehaviour {
         misc_counter=0;
         transform.rotation = player.transform.rotation;
         transform.position=player.transform.position+player.transform.forward;
+        mesh_agent.Stop();
     }
     void flyProgress() {
-        transform.RotateAround(player.transform.right, player.transform.right *-1f, 10f);
-        if (misc_counter++ > 12)
+        transform.RotateAround(player.transform.position, player.transform.right, 10f);
+        if (misc_counter++ > 12) {
             misc_counter=0;
             current_state=EnemyState.KO;
+            player.GetComponent<Rigidbody>().isKinematic = false;
+        }
     }
     void getUp() {
-
+        mesh_agent.Resume();
     }
 
     void patrolUpdate() {

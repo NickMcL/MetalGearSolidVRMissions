@@ -10,10 +10,11 @@ public class MovementController : MonoBehaviour {
     const KeyCode DOWN_KEY = KeyCode.DownArrow;
     const KeyCode RIGHT_KEY = KeyCode.RightArrow;
     const KeyCode CRAWL_KEY = KeyCode.Q;
-    const KeyCode ATTACK_KEY = KeyCode.A;
+    const KeyCode ATTACK_KEY = KeyCode.S;
+    const KeyCode KNOCK_KEY = KeyCode.X;
     float poscount = 0;
     bool knock_lock;
-
+    public LayerMask enemy_layer;
     // Player collider values
     Vector3 PLAYER_STANDING_COLLIDER_CENTER = new Vector3(0f, 0.5f, 0f);
     Vector3 PLAYER_STANDING_COLLIDER_SIZE = new Vector3(1f, 2f, 1f);
@@ -32,7 +33,7 @@ public class MovementController : MonoBehaviour {
         RUN,
         CRAWL,
         AGAINST_WALL,
-        ALONG_WALL
+        ALONG_WALL,
     };
     public movementState move_state = movementState.RUN;
 
@@ -46,22 +47,32 @@ public class MovementController : MonoBehaviour {
         body = gameObject.GetComponent<Rigidbody>();
     }
 
-	// Update is called once per frame
-	void Update () {
+    // Update is called once per frame
+    void Update() {
         if (under_obstacle) {
             updateUnderObstacleTransformFromInput();
-        } else {
+        }
+        else {
             setVelocityFromInput();
             updateWallMovement();
             updateForwardDirection();
         }
 
-        if (Input.GetKey(ATTACK_KEY)) {
-            if (!knock_lock&& movementState.AGAINST_WALL == move_state) {
+        if (Input.GetKey(KNOCK_KEY)) {
+            if (!knock_lock && movementState.AGAINST_WALL == move_state) {
                 knock_lock = true;
                 Invoke("unlock_knock", 1f); //prevents knock spam
                 Knock();
             }
+        }
+        if (move_state == movementState.RUN && Input.GetKey(ATTACK_KEY) && !body.isKinematic) {
+            RaycastHit hit_info;
+            Ray facing= new Ray(transform.position -transform.forward, transform.forward);
+            if (Physics.SphereCast(facing, 2f, out hit_info, 2f, enemy_layer)) {
+                hit_info.rigidbody.gameObject.GetComponent<Enemy>().getFlipped();
+                body.isKinematic=true;
+            }
+
         }
 
         if (Input.GetKeyDown(CRAWL_KEY)) {
@@ -70,7 +81,7 @@ public class MovementController : MonoBehaviour {
 
         adjustCamera();
         adjustPlayerCollider();
-	}
+    }
 
     void unlock_knock() {
         knock_lock = false;
@@ -93,7 +104,8 @@ public class MovementController : MonoBehaviour {
 
         if (move_state == movementState.CRAWL) {
             body.velocity = vel.normalized * crawl_speed;
-        } else {
+        }
+        else {
             body.velocity = vel.normalized * run_speed;
         }
     }
@@ -126,7 +138,8 @@ public class MovementController : MonoBehaviour {
             else if (move_state == movementState.AGAINST_WALL) {
                 updateAgainstWall();
             }
-        } else if (move_state != movementState.CRAWL) {
+        }
+        else if (move_state != movementState.CRAWL) {
             move_state = movementState.RUN;
             locked_direction = Vector3.zero;
         }
@@ -164,7 +177,8 @@ public class MovementController : MonoBehaviour {
             }
             zeroMovementInLockedDirection();
 
-        } else if (movingOppositeOfLockedDirection()) {
+        }
+        else if (movingOppositeOfLockedDirection()) {
             locked_direction = Vector3.zero;
             move_state = movementState.RUN;
         }
@@ -188,13 +202,14 @@ public class MovementController : MonoBehaviour {
             locked_direction = Vector3.zero;
             move_state = movementState.RUN;
             return;
-        } 
+        }
 
         if (!movingInLockedDirection()) {
             this.transform.position += this.transform.forward * 0.5f;
             locked_direction = Vector3.zero;
             move_state = movementState.RUN;
-        } else {
+        }
+        else {
             zeroMovementInLockedDirection();
         }
     }
@@ -222,9 +237,9 @@ public class MovementController : MonoBehaviour {
         }
 
         GameObject current_player_point = Instantiate(waypoint_prefab, transform.position, Quaternion.identity) as GameObject;
-        
+
         current_player_point.name="player_pos"+poscount++;
-        GameObject  closest_enemy = gameObject;
+        GameObject closest_enemy = gameObject;
         float closest_distance = range+10f;
         foreach (GameObject grunt in all_Enemy) {
 
@@ -235,14 +250,14 @@ public class MovementController : MonoBehaviour {
             }
 
         }
-        if(closest_distance<range+9f)
-        {
+        if (closest_distance<range+9f) {
             closest_enemy.GetComponent<Enemy>().investigate(current_player_point);
             current_player_point.GetComponent<PatrolPoint>().waiting=true;
         }
-        else        current_player_point.GetComponent<PatrolPoint>().waiting=false;
+        else
+            current_player_point.GetComponent<PatrolPoint>().waiting=false;
     }
-    
+
     void toggleCrawl() {
         if (move_state != movementState.CRAWL) {
             body.transform.position = new Vector3(body.transform.position.x, .25f, body.transform.position.z);
@@ -252,7 +267,8 @@ public class MovementController : MonoBehaviour {
             }
             body.transform.Rotate(new Vector3(90f, 0f, 0f));
             move_state = movementState.CRAWL;
-        } else if (move_state == movementState.CRAWL &&
+        }
+        else if (move_state == movementState.CRAWL &&
                 !Physics.Raycast(this.transform.position, this.transform.forward * -1f)) {
             body.transform.position = new Vector3(body.transform.position.x, 1f, body.transform.position.z);
             body.transform.Rotate(new Vector3(-90f, 0f, 0f));
@@ -265,7 +281,8 @@ public class MovementController : MonoBehaviour {
 
         if (move_state == movementState.AGAINST_WALL) {
             camera_moved = moveCameraIfByWallEdge();
-        } else if (move_state == movementState.CRAWL) {
+        }
+        else if (move_state == movementState.CRAWL) {
             camera_moved = moveCameraIfUnderObstacle();
             under_obstacle = camera_moved;
         }
@@ -292,7 +309,8 @@ public class MovementController : MonoBehaviour {
         if (!Physics.CheckSphere(right_check_pos, 0.01f, layer_mask)) {
             CameraController.cam_control.moveToLookDownHallway(this.transform, true);
             return true;
-        } else if (!Physics.CheckSphere(left_check_pos, 0.01f, layer_mask)) {
+        }
+        else if (!Physics.CheckSphere(left_check_pos, 0.01f, layer_mask)) {
             CameraController.cam_control.moveToLookDownHallway(this.transform, false);
             return true;
         }
@@ -322,7 +340,8 @@ public class MovementController : MonoBehaviour {
         if (under_obstacle) {
             player_collider.center = PLAYER_UNDER_OBSTACLE_COLLIDER_CENTER;
             player_collider.size = PLAYER_UNDER_OBSTACLE_COLLIDER_SIZE;
-        } else {
+        }
+        else {
             player_collider.center = PLAYER_CRAWLING_COLLIDER_CENTER;
             player_collider.size = PLAYER_CRAWLING_COLLIDER_SIZE;
         }
@@ -350,7 +369,8 @@ public class MovementController : MonoBehaviour {
 
             if (movingDiagonal()) {
                 move_state = movementState.ALONG_WALL;
-            } else {
+            }
+            else {
                 move_state = movementState.AGAINST_WALL;
                 body.transform.rotation = Quaternion.LookRotation(coll.contacts[0].normal);
             }
@@ -373,7 +393,8 @@ public class MovementController : MonoBehaviour {
         Vector3 vel = body.velocity;
         if (locked_direction.x != 0) {
             vel.x = 0;
-        } else if (locked_direction.z != 0) {
+        }
+        else if (locked_direction.z != 0) {
             vel.z = 0;
         }
         body.velocity = vel;
