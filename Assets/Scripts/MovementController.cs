@@ -24,10 +24,19 @@ public class MovementController : MonoBehaviour {
     Vector3 PLAYER_UNDER_OBSTACLE_COLLIDER_SIZE = new Vector3(1f, 0.4f, 1f);
 
     public static MovementController player;  // Singleton
+    public GameObject ground_game_object;
+    Rigidbody body;
+
     public float run_speed = 10f;
     public float crawl_speed = 2f;
     public float rot_speed = 10f;
-    Rigidbody body;
+    public float control_change_delay = 1.0f;
+
+    // Position limits
+    float x_position_min;
+    float x_position_max;
+    float z_position_min;
+    float z_position_max;
 
     public enum movementState {
         RUN,
@@ -45,6 +54,7 @@ public class MovementController : MonoBehaviour {
     void Start() {
         player = this;
         body = gameObject.GetComponent<Rigidbody>();
+        initPositionLimits();
     }
 
     // Update is called once per frame
@@ -57,6 +67,7 @@ public class MovementController : MonoBehaviour {
             updateWallMovement();
             updateForwardDirection();
         }
+        keepPlayerWithinPositionLimits();
 
         if (Input.GetKey(KNOCK_KEY)) {
             if (!knock_lock && movementState.AGAINST_WALL == move_state) {
@@ -227,12 +238,23 @@ public class MovementController : MonoBehaviour {
         }
     }
 
+    void keepPlayerWithinPositionLimits() {
+        Vector3 vel = body.velocity;
+        if (!playerWithinXPositionLimits(vel)) {
+            vel.x = 0;
+        }
+        if (!playerWithinZPositionLimits(vel)) {
+            vel.z = 0;
+        }
+        body.velocity = vel;
+    }
+
     void Knock() {
-        GameObject[] all_Enemy= GameObject.FindGameObjectsWithTag("Enemy");
-        float range = 10f;
-        GameObject[] all_point= GameObject.FindGameObjectsWithTag("Waypoint");
+        GameObject[] all_Enemy = GameObject.FindGameObjectsWithTag("Enemy");
+        float range = 20f;
+        GameObject[] all_point = GameObject.FindGameObjectsWithTag("Waypoint");
         foreach (GameObject point in all_point) {
-            if (point.transform.position==transform.position)
+            if (point.transform.position == transform.position)
                 return;
         }
 
@@ -242,20 +264,28 @@ public class MovementController : MonoBehaviour {
         GameObject closest_enemy = gameObject;
         float closest_distance = range+10f;
         foreach (GameObject grunt in all_Enemy) {
-
             Vector3 to_player = grunt.transform.position-transform.position;
             if (to_player.magnitude < range &&to_player.magnitude<closest_distance) {
                 closest_distance=to_player.magnitude;
                 closest_enemy = grunt;
             }
-
         }
+<<<<<<< HEAD
         if (closest_distance<range+9f) {
+=======
+        if (closest_distance < range + 9f) {
+>>>>>>> f8895deb24441c4f5b57acf2181f037af529840f
             closest_enemy.GetComponent<Enemy>().investigate(current_player_point);
-            current_player_point.GetComponent<PatrolPoint>().waiting=true;
+            current_player_point.GetComponent<PatrolPoint>().waiting = true;
         }
+        else {
+            current_player_point.GetComponent<PatrolPoint>().waiting = false;
+        }
+<<<<<<< HEAD
         else
             current_player_point.GetComponent<PatrolPoint>().waiting=false;
+=======
+>>>>>>> f8895deb24441c4f5b57acf2181f037af529840f
     }
 
     void toggleCrawl() {
@@ -398,5 +428,38 @@ public class MovementController : MonoBehaviour {
             vel.z = 0;
         }
         body.velocity = vel;
+    }
+
+    void initPositionLimits() {
+        x_position_min = ground_game_object.transform.position.x -
+                (ground_game_object.transform.localScale.x / 2f) + 0.1f;
+        x_position_max = ground_game_object.transform.position.x +
+                (ground_game_object.transform.localScale.x / 2f) - 0.1f;
+        z_position_min = ground_game_object.transform.position.z -
+                (ground_game_object.transform.localScale.z / 2f) + 0.3f;
+        z_position_max = ground_game_object.transform.position.z +
+                (ground_game_object.transform.localScale.z / 2f) - 0.3f;
+    }
+
+    bool playerWithinXPositionLimits(Vector3 movement_direction) {
+        float mid_offset = this.transform.localScale.x / 2f;
+        if (this.transform.position.x - mid_offset < x_position_min && movement_direction.x < 0) {
+            return false;
+        }
+        if (this.transform.position.x + mid_offset > x_position_max && movement_direction.x > 0) {
+            return false;
+        }
+        return true;
+    }
+
+    bool playerWithinZPositionLimits(Vector3 movement_direction) {
+        float mid_offset = this.transform.localScale.z / 2f;
+        if (this.transform.position.z - mid_offset < z_position_min && movement_direction.z < 0) {
+            return false;
+        }
+        if (this.transform.position.z + mid_offset > z_position_max && movement_direction.z > 0) {
+            return false;
+        }
+        return true;
     }
 }
