@@ -24,7 +24,6 @@ public class MovementController : MonoBehaviour {
     Vector3 PLAYER_UNDER_OBSTACLE_COLLIDER_SIZE = new Vector3(1f, 0.4f, 1f);
 
     public static MovementController player;  // Singleton
-    public GameObject ground_game_object;
     Rigidbody body;
 
     public float run_speed = 10f;
@@ -50,11 +49,14 @@ public class MovementController : MonoBehaviour {
     bool hit_corner = false;
     bool under_obstacle = false;
 
+    void Awake() {
+        initPositionLimits();
+    }
+
     // Use this for initialization
     void Start() {
         player = this;
         body = gameObject.GetComponent<Rigidbody>();
-        initPositionLimits();
     }
 
     // Update is called once per frame
@@ -431,6 +433,7 @@ public class MovementController : MonoBehaviour {
     }
 
     void initPositionLimits() {
+        GameObject ground_game_object = GameObject.FindGameObjectWithTag("Ground");
         x_position_min = ground_game_object.transform.position.x -
                 (ground_game_object.transform.localScale.x / 2f) + 0.1f;
         x_position_max = ground_game_object.transform.position.x +
