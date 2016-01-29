@@ -23,12 +23,19 @@ public class MovementController : MonoBehaviour {
     Vector3 PLAYER_UNDER_OBSTACLE_COLLIDER_SIZE = new Vector3(1f, 0.4f, 1f);
 
     public static MovementController player;  // Singleton
+    public GameObject ground_game_object;
     Rigidbody body;
 
     public float run_speed = 10f;
     public float crawl_speed = 2f;
     public float rot_speed = 10f;
     public float control_change_delay = 1.0f;
+
+    // Position limits
+    float x_position_min;
+    float x_position_max;
+    float z_position_min;
+    float z_position_max;
 
     public enum movementState {
         RUN,
@@ -46,6 +53,7 @@ public class MovementController : MonoBehaviour {
     void Start() {
         player = this;
         body = gameObject.GetComponent<Rigidbody>();
+        initPositionLimits();
     }
 
 	// Update is called once per frame
@@ -57,6 +65,7 @@ public class MovementController : MonoBehaviour {
             updateWallMovement();
             updateForwardDirection();
         }
+        keepPlayerWithinPositionLimits();
 
         if (Input.GetKey(ATTACK_KEY)) {
             if (!knock_lock&& movementState.AGAINST_WALL == move_state) {
@@ -212,6 +221,17 @@ public class MovementController : MonoBehaviour {
                 body.transform.Rotate(new Vector3(90f, 0f, 0f));
             }
         }
+    }
+
+    void keepPlayerWithinPositionLimits() {
+        Vector3 vel = body.velocity;
+        if (!playerWithinXPositionLimits(vel)) {
+            vel.x = 0;
+        }
+        if (!playerWithinZPositionLimits(vel)) {
+            vel.z = 0;
+        }
+        body.velocity = vel;
     }
 
     void Knock() {
@@ -378,5 +398,38 @@ public class MovementController : MonoBehaviour {
             vel.z = 0;
         }
         body.velocity = vel;
+    }
+
+    void initPositionLimits() {
+        x_position_min = ground_game_object.transform.position.x -
+                (ground_game_object.transform.localScale.x / 2f) + 0.1f;
+        x_position_max = ground_game_object.transform.position.x +
+                (ground_game_object.transform.localScale.x / 2f) - 0.1f;
+        z_position_min = ground_game_object.transform.position.z -
+                (ground_game_object.transform.localScale.z / 2f) + 0.3f;
+        z_position_max = ground_game_object.transform.position.z +
+                (ground_game_object.transform.localScale.z / 2f) - 0.3f;
+    }
+
+    bool playerWithinXPositionLimits(Vector3 movement_direction) {
+        float mid_offset = this.transform.localScale.x / 2f;
+        if (this.transform.position.x - mid_offset < x_position_min && movement_direction.x < 0) {
+            return false;
+        }
+        if (this.transform.position.x + mid_offset > x_position_max && movement_direction.x > 0) {
+            return false;
+        }
+        return true;
+    }
+
+    bool playerWithinZPositionLimits(Vector3 movement_direction) {
+        float mid_offset = this.transform.localScale.z / 2f;
+        if (this.transform.position.z - mid_offset < z_position_min && movement_direction.z < 0) {
+            return false;
+        }
+        if (this.transform.position.z + mid_offset > z_position_max && movement_direction.z > 0) {
+            return false;
+        }
+        return true;
     }
 }
