@@ -272,22 +272,15 @@ public class MovementController : MonoBehaviour {
                 closest_enemy = grunt;
             }
         }
-<<<<<<< HEAD
-        if (closest_distance<range+9f) {
-=======
+
         if (closest_distance < range + 9f) {
->>>>>>> f8895deb24441c4f5b57acf2181f037af529840f
             closest_enemy.GetComponent<Enemy>().investigate(current_player_point);
             current_player_point.GetComponent<PatrolPoint>().waiting = true;
         }
         else {
             current_player_point.GetComponent<PatrolPoint>().waiting = false;
         }
-<<<<<<< HEAD
-        else
-            current_player_point.GetComponent<PatrolPoint>().waiting=false;
-=======
->>>>>>> f8895deb24441c4f5b57acf2181f037af529840f
+
     }
 
     void toggleCrawl() {
