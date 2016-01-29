@@ -23,10 +23,12 @@ public class MovementController : MonoBehaviour {
     Vector3 PLAYER_UNDER_OBSTACLE_COLLIDER_SIZE = new Vector3(1f, 0.4f, 1f);
 
     public static MovementController player;  // Singleton
+    Rigidbody body;
+
     public float run_speed = 10f;
     public float crawl_speed = 2f;
     public float rot_speed = 10f;
-    Rigidbody body;
+    public float control_change_delay = 1.0f;
 
     public enum movementState {
         RUN,
@@ -213,20 +215,18 @@ public class MovementController : MonoBehaviour {
     }
 
     void Knock() {
-        GameObject[] all_Enemy= GameObject.FindGameObjectsWithTag("Enemy");
+        GameObject[] all_Enemy = GameObject.FindGameObjectsWithTag("Enemy");
         float range = 20f;
-        GameObject[] all_point= GameObject.FindGameObjectsWithTag("Waypoint");
+        GameObject[] all_point = GameObject.FindGameObjectsWithTag("Waypoint");
         foreach (GameObject point in all_point) {
             if (point.transform.position==transform.position)
                 return;
         }
 
         GameObject current_player_point = Instantiate(waypoint_prefab, transform.position, Quaternion.identity) as GameObject;
-        
-        current_player_point.name="player_pos"+poscount++;
+        current_player_point.name = "player_pos" + poscount++;
         
         foreach (GameObject grunt in all_Enemy) {
-
             Vector3 to_player = grunt.transform.position-transform.position;
             if (to_player.magnitude < range) {
                 grunt.GetComponent<Enemy>().investigate(current_player_point);
