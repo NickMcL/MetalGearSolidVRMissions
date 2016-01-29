@@ -27,6 +27,8 @@ public class PatrolPoint : MonoBehaviour {
     void Start() {
         in_use=false;
         dead = false;
+    }
+    void Awake(){
         GameObject[] all_points= GameObject.FindGameObjectsWithTag("Waypoint");
         Vector3 this_point = transform.position;
         float range = 50f;
@@ -94,17 +96,12 @@ public class PatrolPoint : MonoBehaviour {
     }
     //want to mage both triggers call a function rather than have same code twice
     void OnTriggerEnter(Collider coll) {
-        if (coll.gameObject.tag == "Enemy"&&coll.GetComponent<Enemy>().current_patrol_point==this.gameObject) {
-            coll.gameObject.GetComponent<Enemy>().setPatrolPoint(next_patrol_point);
-            if (!start&& !in_use) {
-                if (waiting)
-                    waiting=false;
-                else
-                    cease_exist();
-            }
-        }
+        triggered(coll);
     }
     void OnTriggerStay(Collider coll) {
+        triggered(coll);
+    }
+    public void triggered(Collider coll) {
         if (coll.gameObject.tag == "Enemy"&&coll.GetComponent<Enemy>().current_patrol_point==this.gameObject) {
             coll.gameObject.GetComponent<Enemy>().setPatrolPoint(next_patrol_point);
             if (!start&& !in_use) {

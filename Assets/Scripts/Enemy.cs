@@ -12,7 +12,7 @@ public enum EnemyState {
 };
 
 public class Enemy : MonoBehaviour {
-    public GameObject player;
+    GameObject player;
     public float speed = 10f;
     public float detect_range = 5f; // Max detection range
     public float detect_angle = 30f;
@@ -26,7 +26,6 @@ public class Enemy : MonoBehaviour {
     public GameObject investigate_point;
     GameObject patrol_return_point;
     GameObject old_prp;
-    Vector3 last_position;
     public LayerMask player_and_walls;
 
     bool ____________________;  // Divider for the inspector
@@ -54,15 +53,30 @@ public class Enemy : MonoBehaviour {
         possible_path=new List<GameObject>();
 
     }
-
+    void Awake() {
+        player = GameObject.FindGameObjectWithTag("Player");
+    }
     // Update is called once per frame
     void Update() {
+       
 
         if (current_state == EnemyState.BEING_FLIPPED) {
             flyProgress();
         }
         else if (current_state == EnemyState.KO) {
-           Invoke("getUp",5f);
+            misc_counter+= Time.deltaTime;
+            if (misc_counter > 0.35){
+                Vector3 down= new Vector3(0,-100,0); 
+                body.AddForceAtPosition(down, transform.position);
+            }
+               
+            if(misc_counter>0.5) player.GetComponent<MovementController>().unlock_flip();
+
+            if (misc_counter > 4) {
+                misc_counter=0;
+                getUp();
+            }
+            
         }
         else drawDetectParimeter();
         if (current_state == EnemyState.PATROL) {
@@ -85,35 +99,64 @@ public class Enemy : MonoBehaviour {
                     investigate_point=null;
                 search_path.Remove(search_path.FirstOrDefault());
                 current_patrol_point=search_path.FirstOrDefault();
+                return;
+            }
+            if (investigate_point == current_patrol_point && investigate_point.GetComponent<PatrolPoint>().announced) {
+                RaycastHit Hit;
+                Vector3 to_point = investigate_point.transform.position-transform.position;
+                if (Physics.Raycast(transform.position, to_point, out Hit, 2f)) {
+                    investigate_point.GetComponent<PatrolPoint>().triggered(gameObject.GetComponent<BoxCollider>());
+                }
             }
             patrolUpdate();
         }
 
     }
     public void getFlipped() {
+        mesh_agent.updateRotation =false;
+        mesh_agent.updatePosition =false;
+        body.isKinematic=true;
+        mesh_agent.destination = this.transform.position;
+ //       player.GetComponent<Rigidbody>().isKinematic = true;
         former_state=current_state;
         current_state=EnemyState.BEING_FLIPPED;
-        body.isKinematic=true;
+       /// body.isKinematic=true;
         misc_counter=0;
-        transform.rotation = player.transform.rotation;
+          transform.rotation = player.transform.rotation;
         transform.position=player.transform.position+player.transform.forward;
-        mesh_agent.Stop();
+
+
     }
     void flyProgress() {
-        transform.RotateAround(player.transform.position, player.transform.right, 10f);
-        if (misc_counter++ > 12) {
-            misc_counter=0;
-            current_state=EnemyState.KO;
-            player.GetComponent<Rigidbody>().isKinematic = false;
+        if (misc_counter < 1) {
+            Vector3 posy=transform.position;
+            posy.y+=1.2f*Time.deltaTime;
+            transform.position=posy;
         }
+        else {
+            body.isKinematic=false;
+            Vector3 push = (transform.up + transform.forward*-1f)*300f;
+            Vector3 target = transform.position;
+            target.y+=1;
+            body.AddForceAtPosition(push, target);
+            current_state=EnemyState.KO;
+            misc_counter=0;
+            return;
+        }
+        misc_counter +=Time.deltaTime;
+
     }
     void getUp() {
-        mesh_agent.Resume();
+        //mesh_agent.Resume();
+        current_state = former_state;
+        mesh_agent.Warp(transform.position);
+        mesh_agent.updateRotation =true;
+        mesh_agent.updatePosition =true;
     }
 
     void patrolUpdate() {
         // Move along patrol route
-        if (current_patrol_point!=null)
+       if (current_patrol_point!=null)
             mesh_agent.destination = current_patrol_point.transform.position;
 
         // Check if player can now be seen

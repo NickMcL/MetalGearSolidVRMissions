@@ -13,7 +13,8 @@ public class MovementController : MonoBehaviour {
     const KeyCode ATTACK_KEY = KeyCode.S;
     const KeyCode KNOCK_KEY = KeyCode.X;
     float poscount = 0;
-    bool knock_lock;
+    bool knock_lock = false;
+    bool flip_lock =false;
     public LayerMask enemy_layer;
     // Player collider values
     Vector3 PLAYER_STANDING_COLLIDER_CENTER = new Vector3(0f, 0.5f, 0f);
@@ -61,6 +62,9 @@ public class MovementController : MonoBehaviour {
 
     // Update is called once per frame
     void Update() {
+        if (flip_lock) 
+            return;
+        
         if (under_obstacle) {
             updateUnderObstacleTransformFromInput();
         }
@@ -78,12 +82,22 @@ public class MovementController : MonoBehaviour {
                 Knock();
             }
         }
-        if (move_state == movementState.RUN && Input.GetKey(ATTACK_KEY) && !body.isKinematic) {
+        if (move_state == movementState.RUN && Input.GetKey(ATTACK_KEY) && !body.isKinematic && !flip_lock) {
+            
             RaycastHit hit_info;
-            Ray facing= new Ray(transform.position -transform.forward, transform.forward);
-            if (Physics.SphereCast(facing, 2f, out hit_info, 2f, enemy_layer)) {
-                hit_info.rigidbody.gameObject.GetComponent<Enemy>().getFlipped();
-                body.isKinematic=true;
+            Ray facing= new Ray(transform.position -transform.forward *2, transform.forward);
+            Debug.DrawRay(transform.position -transform.forward *2,transform.forward,Color.blue,2f);
+            Debug.DrawRay(transform.position, transform.right, Color.green, 4f);
+            if (Physics.SphereCast(facing, 2f, out hit_info, 4f, enemy_layer)) {
+                if (hit_info.rigidbody.gameObject.GetComponent<Enemy>().current_state != EnemyState.KO && hit_info.rigidbody.gameObject.GetComponent<Enemy>().current_state != EnemyState.BEING_FLIPPED) {
+                    flip_lock=true;
+                    body.isKinematic=true;
+                    GetComponent<Rigidbody>().GetComponent<Rigidbody>().isKinematic=true;
+                   // Invoke("unlock_flip", 0.5f);
+                    hit_info.rigidbody.gameObject.GetComponent<Enemy>().getFlipped();
+
+                }
+                
             }
 
         }
@@ -95,12 +109,18 @@ public class MovementController : MonoBehaviour {
         adjustCamera();
         adjustPlayerCollider();
     }
-
-    void unlock_knock() {
+ public     void unlock_flip() {
+        flip_lock =false;
+        body.isKinematic=false;
+    }
+  void unlock_knock() {
         knock_lock = false;
     }
 
     void setVelocityFromInput() {
+        if (flip_lock)
+            return;
+        
         Vector3 vel = Vector3.zero;
         if (Input.GetKey(UP_KEY)) {
             vel.z += 1;  // Move up
