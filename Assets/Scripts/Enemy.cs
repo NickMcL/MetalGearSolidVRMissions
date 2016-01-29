@@ -6,16 +6,16 @@ using System.Linq;
 public enum EnemyState {
     PATROL,
     SEE_PLAYER,
-    INVESTIGATE
+    INVESTIGATE,
+    BEING_FLIPPED,
+    KO
 };
 
 public class Enemy : MonoBehaviour {
+    public GameObject player;
     public float speed = 10f;
     public float detect_range = 5f; // Max detection range
     public float detect_angle = 30f;
-
-    public float detect_delay = 0.5f;
-    public float undetect_delay = 1f;
     public List<GameObject> search_path;
     List<GameObject> possible_path;
     public Color default_color;
@@ -27,11 +27,13 @@ public class Enemy : MonoBehaviour {
     GameObject patrol_return_point;
     GameObject old_prp;
     Vector3 last_position;
+    public LayerMask player_and_walls;
 
     bool ____________________;  // Divider for the inspector
 
     public EnemyState current_state;
-
+    EnemyState former_state;
+    float misc_counter;
     Rigidbody body;
     NavMeshAgent mesh_agent;
     LineRenderer detect_area_parimeter;
@@ -55,7 +57,14 @@ public class Enemy : MonoBehaviour {
 
     // Update is called once per frame
     void Update() {
-        drawDetectParimeter();
+
+        if (current_state == EnemyState.BEING_FLIPPED) {
+            flyProgress();
+        }
+        else if (current_state == EnemyState.KO) {
+            getUp();
+        }
+        else drawDetectParimeter();
         if (current_state == EnemyState.PATROL) {
             patrolUpdate();
         }
@@ -63,38 +72,40 @@ public class Enemy : MonoBehaviour {
             seePlayerUpdate();
         }
         else if (current_state == EnemyState.INVESTIGATE) {
-
-            if (search_path.Count == 0 &&investigate_point.GetComponent<PatrolPoint>().announced) {
+            bool new_investigation = search_path.Count == 0 && investigate_point.GetComponent<PatrolPoint>().announced;
+            bool case_closed =investigate_point==old_prp;
+            if (new_investigation||case_closed) {
                 float shortest = 9999999;
                 float current_dist=0;
                 possible_path.Clear();
                 possible_path=new List<GameObject>();
                 patrol_return_point.GetComponent<PatrolPoint>().neighbors.RemoveAll(x => x.point==null);
                 findRoute(patrol_return_point, ref shortest, ref current_dist);
-                /*
-                List<GameObject> return_trip = search_path.ToList();
-                return_trip.Reverse();
-                return_trip.Remove(return_trip.FirstOrDefault());
-                search_path.AddRange(return_trip);
-                  */
-                search_path.Remove(search_path.FirstOrDefault());
-                current_patrol_point=search_path.FirstOrDefault();
-
-
-            }
-            if (investigate_point==old_prp) {
-                float shortest = 9999999;
-                float current_dist = 0;
-                possible_path.Clear();
-                possible_path=new List<GameObject>();
-                patrol_return_point.GetComponent<PatrolPoint>().neighbors.RemoveAll(x => x.point==null);
-                findRoute(patrol_return_point, ref shortest, ref current_dist);
-                investigate_point=null;
+                if (case_closed)
+                    investigate_point=null;
                 search_path.Remove(search_path.FirstOrDefault());
                 current_patrol_point=search_path.FirstOrDefault();
             }
             patrolUpdate();
         }
+
+    }
+    public void getFlipped() {
+        former_state=current_state;
+        current_state=EnemyState.BEING_FLIPPED;
+        body.isKinematic=true;
+        misc_counter=0;
+        transform.rotation = player.transform.rotation;
+        transform.position=player.transform.position+player.transform.forward;
+    }
+    void flyProgress() {
+        transform.RotateAround(player.transform.right, player.transform.right *-1f, 10f);
+        if (misc_counter++ > 12)
+            misc_counter=0;
+            current_state=EnemyState.KO;
+    }
+    void getUp() {
+
     }
 
     void patrolUpdate() {
@@ -113,15 +124,14 @@ public class Enemy : MonoBehaviour {
         mesh_agent.destination = this.transform.position;
 
         if (!playerInFieldOfView()) {
-            Invoke("undetectPlayer", undetect_delay);
+            Invoke("undetectPlayer", 0.1f);
         }
     }
 
     bool playerInFieldOfView() {
         RaycastHit see_player;
         Vector3 to_player = MovementController.player.transform.position - transform.position;
-
-        Physics.Raycast(this.transform.position, to_player, out see_player);
+        Physics.Raycast(this.transform.position, to_player, out see_player, player_and_walls);
         if (Vector3.Angle(this.transform.forward, to_player) < detect_angle &&
                 see_player.collider.gameObject.tag == "Player" && see_player.distance < detect_range) {
             Debug.DrawRay(this.transform.position, to_player);
@@ -166,6 +176,8 @@ public class Enemy : MonoBehaviour {
     void undetectPlayer() {
         if (!playerInFieldOfView()) {
             current_state = EnemyState.PATROL;
+            if (search_path.Count!=0)
+                current_state = EnemyState.INVESTIGATE;
             this.GetComponent<Renderer>().material.color = default_color;
         }
     }
@@ -177,21 +189,14 @@ public class Enemy : MonoBehaviour {
             GameObject next_point=search_path.FirstOrDefault();
             if (current_patrol_point == next_point) {
                 search_path.Remove(next_point);
-                
-            
                 if (search_path.Count()==0&& current_patrol_point==investigate_point) {
-                   /*
-                    current_state=EnemyState.PATROL;
-                    current_patrol_point=original_patrol_point;
-                    investigate_point=null;
-                    * */
                     resume_patrol();
                     return;
                 }
                 if (search_path.Count()==0) {
                     current_state=EnemyState.PATROL;
                     current_patrol_point = original_patrol_point;
-                    patrol_return_point.GetComponent<PatrolPoint>().waiting=0;
+                    patrol_return_point.GetComponent<PatrolPoint>().waiting=false;
                     return;
                 }
                 current_patrol_point = search_path.FirstOrDefault();
@@ -212,23 +217,19 @@ public class Enemy : MonoBehaviour {
             original_patrol_point=current_patrol_point;
         }
         else {
-           if(investigate_point!=null) investigate_point.GetComponent<PatrolPoint>().waiting--;
+            if (investigate_point!=null)
+                investigate_point.GetComponent<PatrolPoint>().waiting=false;
             investigate_point=new_point;
             search_path.Clear();
         }
-
-
-
     }
     public void resume_patrol() {
         old_prp=patrol_return_point;
-        investigate_point.GetComponent<PatrolPoint>().waiting--;
+        investigate_point.GetComponent<PatrolPoint>().waiting=false;
         investigate_point=old_prp;
         patrol_return_point = Instantiate(waypoint_prefab, transform.position, Quaternion.identity) as GameObject;
         patrol_return_point.name="last_pos_of_"+this.gameObject.name;
         patrol_return_point.GetComponent<PatrolPoint>().in_use=true;
-        
-
     }
 
     void findRoute(GameObject current_path_point, ref float shortest, ref float current_dist) {
@@ -242,11 +243,10 @@ public class Enemy : MonoBehaviour {
             possible_path.Remove(current_path_point);
             return;
         }
-
-        // UnityEditor.EditorApplication.isPaused = true;
-
         foreach (Neighbor next in current_path_point.GetComponent<PatrolPoint>().neighbors) {
             if (possible_path.Contains(next.point))
+                continue;
+            if (next.point!=investigate_point&&!next.point.GetComponent<PatrolPoint>().start)
                 continue;
             current_dist+=next.distance;
             if (current_dist<shortest) {
@@ -254,13 +254,10 @@ public class Enemy : MonoBehaviour {
                 findRoute(next.point, ref shortest, ref current_dist);
             }
             current_dist-=next.distance;
-
         }
-
         possible_path.Remove(current_path_point);
         current_path_point.GetComponent<PatrolPoint>().in_use= false;
 
     }
-
 
 }
