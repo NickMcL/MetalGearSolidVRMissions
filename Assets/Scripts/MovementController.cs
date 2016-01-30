@@ -16,6 +16,7 @@ public class MovementController : MonoBehaviour {
     bool knock_lock = false;
     bool flip_lock =false;
     public LayerMask enemy_layer;
+    GameObject victim;
     // Player collider values
     Vector3 PLAYER_STANDING_COLLIDER_CENTER = new Vector3(0f, 0.5f, 0f);
     Vector3 PLAYER_STANDING_COLLIDER_SIZE = new Vector3(1f, 2f, 1f);
@@ -62,8 +63,11 @@ public class MovementController : MonoBehaviour {
 
     // Update is called once per frame
     void Update() {
-        if (flip_lock) 
+        if (flip_lock) {
+            if (victim.GetComponent<Enemy>().current_state!= EnemyState.KO && victim.GetComponent<Enemy>().current_state!= EnemyState.BEING_FLIPPED)
+                victim.GetComponent<Enemy>().getFlipped();
             return;
+        }
         
         if (under_obstacle) {
             updateUnderObstacleTransformFromInput();
@@ -85,13 +89,14 @@ public class MovementController : MonoBehaviour {
         if (move_state == movementState.RUN && Input.GetKey(ATTACK_KEY) && !body.isKinematic && !flip_lock) {
             
             RaycastHit hit_info;
-            Ray facing= new Ray(transform.position -transform.forward *2, transform.forward);
+            Ray facing= new Ray(transform.position -transform.forward, transform.forward);
             Debug.DrawRay(transform.position -transform.forward *2,transform.forward,Color.blue,2f);
             Debug.DrawRay(transform.position, transform.right, Color.green, 4f);
-            if (Physics.SphereCast(facing, 2f, out hit_info, 4f, enemy_layer)) {
+            if (Physics.SphereCast(facing, 1.1f, out hit_info, 2f, enemy_layer)) {
                 if (hit_info.rigidbody.gameObject.GetComponent<Enemy>().current_state != EnemyState.KO && hit_info.rigidbody.gameObject.GetComponent<Enemy>().current_state != EnemyState.BEING_FLIPPED) {
                     flip_lock=true;
                     body.isKinematic=true;
+                    victim = hit_info.rigidbody.gameObject;
                     GetComponent<Rigidbody>().GetComponent<Rigidbody>().isKinematic=true;
                    // Invoke("unlock_flip", 0.5f);
                     hit_info.rigidbody.gameObject.GetComponent<Enemy>().getFlipped();
@@ -286,8 +291,9 @@ public class MovementController : MonoBehaviour {
         GameObject closest_enemy = gameObject;
         float closest_distance = range+10f;
         foreach (GameObject grunt in all_Enemy) {
+            bool is_this_even_possible = grunt.gameObject.GetComponent<Enemy>().current_state != EnemyState.KO && grunt.gameObject.GetComponent<Enemy>().current_state != EnemyState.BEING_FLIPPED;
             Vector3 to_player = grunt.transform.position-transform.position;
-            if (to_player.magnitude < range &&to_player.magnitude<closest_distance) {
+            if (is_this_even_possible && to_player.magnitude < range &&to_player.magnitude<closest_distance) {
                 closest_distance=to_player.magnitude;
                 closest_enemy = grunt;
             }
