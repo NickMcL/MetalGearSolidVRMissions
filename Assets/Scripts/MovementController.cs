@@ -28,7 +28,7 @@ public class MovementController : MonoBehaviour {
     public float run_speed = 10f;
     public float crawl_speed = 2f;
     public float rot_speed = 10f;
-    public float control_change_delay = 1.0f;
+    public float control_change_delay = 0.5f;
 
     // Position limits
     float x_position_min;
@@ -45,27 +45,35 @@ public class MovementController : MonoBehaviour {
     public movementState move_state = movementState.RUN;
 
     public Vector3 locked_direction;
-    bool hit_corner = false;
-    bool under_obstacle = false;
+    public bool under_obstacle_last_frame;
+    Vector3 velocity_last_frame;
+    bool hit_corner;
+    float control_lock_start_time;
 
     void Awake() {
-        initPositionLimits();
+        player = this;
     }
 
     // Use this for initialization
     void Start() {
-        player = this;
         body = gameObject.GetComponent<Rigidbody>();
+        initPositionLimits();
+
+        control_lock_start_time = 0f;
+        under_obstacle_last_frame = false;
+        hit_corner = false;
     }
 
 	// Update is called once per frame
 	void Update () {
-        if (under_obstacle) {
-            updateUnderObstacleTransformFromInput();
-        } else {
-            setVelocityFromInput();
-            updateWallMovement();
-            updateForwardDirection();
+        if (!lockControlsIfNeeded()) {
+            if (under_obstacle_last_frame) {
+                updateUnderObstacleTransformFromInput();
+            } else {
+                setVelocityFromInput();
+                updateWallMovement();
+                updateForwardDirection();
+            }
         }
         keepPlayerWithinPositionLimits();
 
@@ -83,10 +91,24 @@ public class MovementController : MonoBehaviour {
 
         adjustCamera();
         adjustPlayerCollider();
+        velocity_last_frame = body.velocity;
 	}
 
     void unlock_knock() {
         knock_lock = false;
+    }
+
+    bool lockControlsIfNeeded() {
+        if (under_obstacle_last_frame != playerIsUnderObstacle()) {
+            control_lock_start_time = Time.time;
+        }
+
+        if (control_lock_start_time != 0f &&
+                Time.time - control_lock_start_time < control_change_delay) {
+            body.velocity = velocity_last_frame;
+            return true;
+        }
+        return false;
     }
 
     void setVelocityFromInput() {
@@ -247,21 +269,20 @@ public class MovementController : MonoBehaviour {
 
         GameObject current_player_point = Instantiate(waypoint_prefab, transform.position, Quaternion.identity) as GameObject;
         
-        current_player_point.name="player_pos"+poscount++;
+        current_player_point.name = "player_pos" + poscount++;
         GameObject  closest_enemy = gameObject;
-        float closest_distance = range+10f;
+        float closest_distance = range + 10f;
         foreach (GameObject grunt in all_Enemy) {
             Vector3 to_player = grunt.transform.position-transform.position;
-            if (to_player.magnitude < range &&to_player.magnitude<closest_distance) {
-                closest_distance=to_player.magnitude;
+            if (to_player.magnitude < range && to_player.magnitude < closest_distance) {
+                closest_distance = to_player.magnitude;
                 closest_enemy = grunt;
             }
         }
         if (closest_distance < range + 9f) {
             closest_enemy.GetComponent<Enemy>().investigate(current_player_point);
             current_player_point.GetComponent<PatrolPoint>().waiting = true;
-        }
-        else {
+        } else {
             current_player_point.GetComponent<PatrolPoint>().waiting = false;
         }
     }
@@ -275,8 +296,7 @@ public class MovementController : MonoBehaviour {
             }
             body.transform.Rotate(new Vector3(90f, 0f, 0f));
             move_state = movementState.CRAWL;
-        } else if (move_state == movementState.CRAWL &&
-                !Physics.Raycast(this.transform.position, this.transform.forward * -1f)) {
+        } else if (!playerIsUnderObstacle()) {
             body.transform.position = new Vector3(body.transform.position.x, 1f, body.transform.position.z);
             body.transform.Rotate(new Vector3(-90f, 0f, 0f));
             move_state = movementState.RUN;
@@ -288,9 +308,12 @@ public class MovementController : MonoBehaviour {
 
         if (move_state == movementState.AGAINST_WALL) {
             camera_moved = moveCameraIfByWallEdge();
+            if (!camera_moved) {
+                camera_moved = moveCameraIfWallsOnBothSides();
+            }
         } else if (move_state == movementState.CRAWL) {
             camera_moved = moveCameraIfUnderObstacle();
-            under_obstacle = camera_moved;
+            under_obstacle_last_frame = camera_moved;
         }
 
         if (!camera_moved) {
@@ -299,36 +322,101 @@ public class MovementController : MonoBehaviour {
     }
 
     bool moveCameraIfByWallEdge() {
+        RaycastHit right_hit_info, left_hit_info;
+        bool right_by_wall, left_by_wall;
         Vector3 right_check_pos = this.transform.position;
         Vector3 left_check_pos = this.transform.position;
         int layer_mask = 1 << LayerMask.NameToLayer("Obstacle");
         right_check_pos.y += 1.25f;
         left_check_pos.y += 1.25f;
 
-        right_check_pos += this.transform.right * (1.1f + (this.transform.localScale.x / 2f));
-        right_check_pos += this.transform.forward * -0.5f;
-        left_check_pos += this.transform.right * -(1.1f + (this.transform.localScale.x / 2f));
-        left_check_pos += this.transform.forward * -0.5f;
+        right_check_pos += this.transform.right * (1.5f + (this.transform.localScale.x / 2f));
+        right_check_pos += this.transform.forward * -0.75f;
+        left_check_pos += this.transform.right * -(1.5f + (this.transform.localScale.x / 2f));
+        left_check_pos += this.transform.forward * -0.75f;
 
         Debug.DrawRay(this.transform.position, right_check_pos - this.transform.position);
         Debug.DrawRay(this.transform.position, left_check_pos - this.transform.position);
-        if (!Physics.CheckSphere(right_check_pos, 0.01f, layer_mask)) {
-            CameraController.cam_control.moveToLookDownHallway(this.transform, true);
+        right_by_wall = !Physics.CheckSphere(right_check_pos, 0.01f, layer_mask);
+        left_by_wall = !Physics.CheckSphere(left_check_pos, 0.01f, layer_mask);
+        Physics.Raycast(right_check_pos, this.transform.right * -1f, out right_hit_info, 2f, layer_mask);
+        Physics.Raycast(left_check_pos, this.transform.right, out left_hit_info, 2f, layer_mask);
+        if (right_by_wall && left_by_wall && playerByWallEdge(true) && playerByWallEdge(false)) {
+            if (right_hit_info.distance < left_hit_info.distance)
+                CameraController.cam_control.moveToLookDownHallway(this.transform, right_hit_info.distance, true);
+            else
+                CameraController.cam_control.moveToLookDownHallway(this.transform, left_hit_info.distance, false);
             return true;
-        } else if (!Physics.CheckSphere(left_check_pos, 0.01f, layer_mask)) {
-            CameraController.cam_control.moveToLookDownHallway(this.transform, false);
+        } else if (right_by_wall && playerByWallEdge(true)) {
+            CameraController.cam_control.moveToLookDownHallway(this.transform, right_hit_info.distance, true);
+            return true;
+        } else if (left_by_wall && playerByWallEdge(false)) {
+            CameraController.cam_control.moveToLookDownHallway(this.transform, left_hit_info.distance, false);
             return true;
         }
         return false;
     }
 
+    bool playerByWallEdge(bool right_side) {
+        Vector3 check_pos = this.transform.position;
+        int layer_mask = 1 << LayerMask.NameToLayer("Obstacle");
+        int direction = 1;
+        if (!right_side) {
+            direction = -1;
+        }
+        check_pos.y += 1.25f;
+
+        check_pos += this.transform.right * (1.5f + (this.transform.localScale.x / 2f)) * direction;
+        check_pos += this.transform.forward * -2.5f;
+
+        if (!Physics.CheckSphere(check_pos, 0.01f, layer_mask)) {
+            return true;
+        }
+        return false;
+    }
+
+    bool moveCameraIfWallsOnBothSides() {
+        RaycastHit right_hit_info, left_hit_info;
+        bool right_wall, left_wall;
+        Vector3 right_check_pos = this.transform.position;
+        Vector3 left_check_pos = this.transform.position;
+        int layer_mask = 1 << LayerMask.NameToLayer("Obstacle");
+
+        right_check_pos += this.transform.right * (1.0f + (this.transform.localScale.x / 2f));
+        left_check_pos += this.transform.right * -(1.0f + (this.transform.localScale.x / 2f));
+
+        right_wall = Physics.CheckSphere(right_check_pos, 0.01f, layer_mask);
+        left_wall = Physics.CheckSphere(left_check_pos, 0.01f, layer_mask);
+        Debug.DrawRay(this.transform.position, right_check_pos - this.transform.position);
+        Debug.DrawRay(this.transform.position, left_check_pos - this.transform.position);
+        Physics.Raycast(this.transform.position, this.transform.right, out right_hit_info, 2f, layer_mask);
+        Physics.Raycast(this.transform.position, this.transform.right * -1, out left_hit_info, 2f, layer_mask);
+        if (right_wall && left_wall) {
+            print(right_hit_info.distance + " " + left_hit_info.distance);
+            if (right_hit_info.distance > left_hit_info.distance)
+                CameraController.cam_control.moveToLookDownHallway(this.transform, right_hit_info.distance, true);
+            else
+                CameraController.cam_control.moveToLookDownHallway(this.transform, left_hit_info.distance, false);
+            return true;
+        }
+        return false;
+
+    }
+
     bool moveCameraIfUnderObstacle() {
+        if (playerIsUnderObstacle()) {
+            CameraController.cam_control.moveToUnderObstacle(this.transform);
+            return true;
+        }
+        return false;
+    }
+
+    bool playerIsUnderObstacle() {
         bool hit;
         RaycastHit hit_info;
 
         hit = Physics.Raycast(this.transform.position, this.transform.forward * -1f, out hit_info);
-        if (hit && hit_info.collider.gameObject.tag == "Obstacle") {
-            CameraController.cam_control.moveToUnderObstacle(this.transform);
+        if (move_state == movementState.CRAWL && hit && hit_info.collider.gameObject.tag == "Obstacle") {
             return true;
         }
         return false;
@@ -342,7 +430,7 @@ public class MovementController : MonoBehaviour {
             return;
         }
 
-        if (under_obstacle) {
+        if (under_obstacle_last_frame) {
             player_collider.center = PLAYER_UNDER_OBSTACLE_COLLIDER_CENTER;
             player_collider.size = PLAYER_UNDER_OBSTACLE_COLLIDER_SIZE;
         } else {

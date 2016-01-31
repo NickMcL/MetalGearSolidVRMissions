@@ -36,9 +36,13 @@ public class Enemy : MonoBehaviour {
     float misc_counter;
     Rigidbody body;
     NavMeshAgent mesh_agent;
-    LineRenderer detect_area_parimeter;
-    int detect_parimeter_arc_vertices = 10;
-    int detect_parimeter_total_vertices = 12;
+
+    public Material line_material;
+    public int detect_area_total_vertices = 12;
+    public float detect_area_line_width;
+    GameObject[] detect_area_objects;
+    LineRenderer[] detect_area_lines;
+    Color detect_area_color = new Color(110f, 218f, 218f);
 
     // Use this for initialization
     void Start() {
@@ -46,13 +50,11 @@ public class Enemy : MonoBehaviour {
         mesh_agent = gameObject.GetComponent<NavMeshAgent>();
         default_color = this.GetComponent<Renderer>().material.color;
 
-        detect_area_parimeter = gameObject.GetComponent<LineRenderer>();
-        detect_area_parimeter.SetVertexCount(detect_parimeter_total_vertices);
+        initDetectArea();
 
         current_state = EnemyState.PATROL;
         search_path=new List<GameObject>();
         possible_path=new List<GameObject>();
-
     }
 
     // Update is called once per frame
@@ -60,18 +62,17 @@ public class Enemy : MonoBehaviour {
 
         if (current_state == EnemyState.BEING_FLIPPED) {
             flyProgress();
-        }
-        else if (current_state == EnemyState.KO) {
+        } else if (current_state == EnemyState.KO) {
             getUp();
+        } else {
+            drawDetectArea();
         }
-        else drawDetectParimeter();
+
         if (current_state == EnemyState.PATROL) {
             patrolUpdate();
-        }
-        else if (current_state == EnemyState.SEE_PLAYER) {
+        } else if (current_state == EnemyState.SEE_PLAYER) {
             seePlayerUpdate();
-        }
-        else if (current_state == EnemyState.INVESTIGATE) {
+        } else if (current_state == EnemyState.INVESTIGATE) {
             bool new_investigation = search_path.Count == 0 && investigate_point.GetComponent<PatrolPoint>().announced;
             bool case_closed =investigate_point==old_prp;
             if (new_investigation||case_closed) {
@@ -140,30 +141,41 @@ public class Enemy : MonoBehaviour {
         return false;
     }
 
-    void drawDetectParimeter() {
-        int cur_vertex = 0;
+    void initDetectArea() {
+        Color line_color_start = detect_area_color;
+        Color line_color_end = detect_area_color;
+        line_color_start.a = 255f;
+        line_color_end.a = 0f;
+        detect_area_objects = new GameObject[detect_area_total_vertices];
+        detect_area_lines = new LineRenderer[detect_area_total_vertices];
+
+        for (int i = 0; i < detect_area_total_vertices; ++i) {
+            detect_area_objects[i] = new GameObject();
+            detect_area_objects[i].layer = LayerMask.NameToLayer("Radar");
+            detect_area_objects[i].transform.parent = this.transform;
+            detect_area_lines[i] = detect_area_objects[i].AddComponent<LineRenderer>();
+            detect_area_lines[i].SetVertexCount(2);
+            detect_area_lines[i].SetWidth(
+                0, (2f * Mathf.PI * detect_range * ((detect_angle * 2) / 360f)) / detect_area_total_vertices);
+            detect_area_lines[i].material = line_material;
+            detect_area_lines[i].SetColors(line_color_start, line_color_end);
+        }
+    }
+
+    void drawDetectArea() {
         float current_angle = -detect_angle;
-        float angle_delta = (detect_angle * 2) / (detect_parimeter_arc_vertices - 1);
-        bool hit;
+        float angle_delta = (detect_angle * 2) / detect_area_total_vertices;
+        Vector3 radar_lift = new Vector3(0f, 15f, 0f);
+        Vector3 range_scale = new Vector3(detect_range, detect_range, detect_range);
         Vector3 arc_offset;
-        Vector3 arc_vertex;
-        RaycastHit ray_hit;
 
-        detect_area_parimeter.SetPosition(cur_vertex++, gameObject.transform.position);
-        for (int i = 0; i < detect_parimeter_arc_vertices; ++i) {
-            arc_offset = Quaternion.Euler(0, current_angle, 0) * gameObject.transform.forward * detect_range;
-            hit = Physics.Raycast(this.transform.position, arc_offset, out ray_hit, detect_range);
-            if (hit && ray_hit.collider.gameObject.tag == "Obstacle") {
-                arc_vertex = ray_hit.point;
-            }
-            else {
-                arc_vertex = gameObject.transform.position + arc_offset;
-            }
-
-            detect_area_parimeter.SetPosition(cur_vertex++, arc_vertex);
+        for (int i = 0; i < detect_area_total_vertices; ++i) {
+            detect_area_lines[i].SetPosition(0, this.transform.position + radar_lift);
+            arc_offset = Vector3.Scale(Quaternion.AngleAxis(current_angle, Vector3.up) *
+                this.transform.forward, range_scale) + radar_lift;
+            detect_area_lines[i].SetPosition(1, this.transform.position + arc_offset);
             current_angle += angle_delta;
         }
-        detect_area_parimeter.SetPosition(cur_vertex, gameObject.transform.position);
     }
 
     void detectPlayer() {
