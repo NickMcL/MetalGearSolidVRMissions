@@ -10,11 +10,12 @@ public class MovementController : MonoBehaviour {
     const KeyCode DOWN_KEY = KeyCode.DownArrow;
     const KeyCode RIGHT_KEY = KeyCode.RightArrow;
     const KeyCode CRAWL_KEY = KeyCode.Q;
-    const KeyCode ATTACK_KEY = KeyCode.S;
+    const KeyCode GRAB_KEY = KeyCode.S;
     const KeyCode KNOCK_KEY = KeyCode.X;
     float poscount = 0;
     bool knock_lock = false;
-    bool flip_lock =false;
+    bool flip_lock = false;
+    bool holding_guard = false;
     public LayerMask enemy_layer;
     GameObject victim;
     // Player collider values
@@ -41,6 +42,7 @@ public class MovementController : MonoBehaviour {
 
     public enum movementState {
         RUN,
+        GRABBING,
         CRAWL,
         AGAINST_WALL,
         ALONG_WALL,
@@ -64,11 +66,11 @@ public class MovementController : MonoBehaviour {
     // Update is called once per frame
     void Update() {
         if (flip_lock) {
-            if (victim.GetComponent<Enemy>().current_state!= EnemyState.KO && victim.GetComponent<Enemy>().current_state!= EnemyState.BEING_FLIPPED)
+            if (victim.GetComponent<Enemy>().current_state != EnemyState.KO && victim.GetComponent<Enemy>().current_state != EnemyState.BEING_FLIPPED)
                 victim.GetComponent<Enemy>().getFlipped();
             return;
         }
-        
+
         if (under_obstacle) {
             updateUnderObstacleTransformFromInput();
         }
@@ -86,26 +88,8 @@ public class MovementController : MonoBehaviour {
                 Knock();
             }
         }
-        if (move_state == movementState.RUN && Input.GetKey(ATTACK_KEY) && !body.isKinematic && !flip_lock) {
-            
-            RaycastHit hit_info;
-            Ray facing= new Ray(transform.position -transform.forward, transform.forward);
-            Debug.DrawRay(transform.position -transform.forward *2,transform.forward,Color.blue,2f);
-            Debug.DrawRay(transform.position, transform.right, Color.green, 4f);
-            if (Physics.SphereCast(facing, 1.1f, out hit_info, 2f, enemy_layer)) {
-                if (hit_info.rigidbody.gameObject.GetComponent<Enemy>().current_state != EnemyState.KO && hit_info.rigidbody.gameObject.GetComponent<Enemy>().current_state != EnemyState.BEING_FLIPPED) {
-                    flip_lock=true;
-                    body.isKinematic=true;
-                    victim = hit_info.rigidbody.gameObject;
-                    GetComponent<Rigidbody>().GetComponent<Rigidbody>().isKinematic=true;
-                   // Invoke("unlock_flip", 0.5f);
-                    hit_info.rigidbody.gameObject.GetComponent<Enemy>().getFlipped();
-
-                }
-                
-            }
-
-        }
+        if (Input.GetKey(GRAB_KEY))
+            resolveGrab();
 
         if (Input.GetKeyDown(CRAWL_KEY)) {
             toggleCrawl();
@@ -114,18 +98,53 @@ public class MovementController : MonoBehaviour {
         adjustCamera();
         adjustPlayerCollider();
     }
- public     void unlock_flip() {
-        flip_lock =false;
-        body.isKinematic=false;
-    }
-  void unlock_knock() {
-        knock_lock = false;
+    void resolveGrab() {
+        if (move_state == movementState.RUN) {
+            RaycastHit hit_info;
+            Ray facing = new Ray(transform.position - transform.forward, transform.forward);
+            Debug.DrawRay(transform.position - transform.forward * 2, transform.forward, Color.blue, 2f);
+            Debug.DrawRay(transform.position, transform.right, Color.green, 4f);
+            if (Physics.SphereCast(facing, 1.1f, out hit_info, 2f, enemy_layer)) {
+                victim = hit_info.rigidbody.gameObject;
+                if (victim.GetComponent<Enemy>().current_state != EnemyState.KO && victim.GetComponent<Enemy>().current_state != EnemyState.BEING_FLIPPED) {
+                    if (move_input() && !body.isKinematic && !flip_lock)
+                        throwEnemy();
+                    else {
+                        move_state = movementState.GRABBING;
+                        victim.GetComponent<Enemy>().getGrabbed();
+                    }
+                }
+            }
+        }
+        else if (move_state == movementState.GRABBING) {
+            if (victim.GetComponent<Enemy>().current_state != EnemyState.GRABBED)
+                move_state = movementState.RUN;
+
+        }
     }
 
+    void throwEnemy() {
+        flip_lock = true;
+        body.isKinematic = true;
+        GetComponent<Rigidbody>().GetComponent<Rigidbody>().isKinematic = true;
+        // Invoke("unlock_flip", 0.5f);
+        victim.GetComponent<Enemy>().getFlipped();
+    }
+
+    public void unlock_flip() {
+        flip_lock = false;
+        body.isKinematic = false;
+    }
+    void unlock_knock() {
+        knock_lock = false;
+    }
+    bool move_input() {
+        return Input.GetKey(UP_KEY) || Input.GetKey(DOWN_KEY) || Input.GetKey(LEFT_KEY) || Input.GetKey(RIGHT_KEY);
+    }
     void setVelocityFromInput() {
         if (flip_lock)
             return;
-        
+
         Vector3 vel = Vector3.zero;
         if (Input.GetKey(UP_KEY)) {
             vel.z += 1;  // Move up
@@ -177,7 +196,7 @@ public class MovementController : MonoBehaviour {
                 updateAgainstWall();
             }
         }
-        else if (move_state != movementState.CRAWL) {
+        else if (move_state != movementState.CRAWL && move_state != movementState.GRABBING) {
             move_state = movementState.RUN;
             locked_direction = Vector3.zero;
         }
@@ -287,14 +306,14 @@ public class MovementController : MonoBehaviour {
 
         GameObject current_player_point = Instantiate(waypoint_prefab, transform.position, Quaternion.identity) as GameObject;
 
-        current_player_point.name="player_pos"+poscount++;
+        current_player_point.name = "player_pos" + poscount++;
         GameObject closest_enemy = gameObject;
-        float closest_distance = range+10f;
+        float closest_distance = range + 10f;
         foreach (GameObject grunt in all_Enemy) {
             bool is_this_even_possible = grunt.gameObject.GetComponent<Enemy>().current_state != EnemyState.KO && grunt.gameObject.GetComponent<Enemy>().current_state != EnemyState.BEING_FLIPPED;
-            Vector3 to_player = grunt.transform.position-transform.position;
-            if (is_this_even_possible && to_player.magnitude < range &&to_player.magnitude<closest_distance) {
-                closest_distance=to_player.magnitude;
+            Vector3 to_player = grunt.transform.position - transform.position;
+            if (is_this_even_possible && to_player.magnitude < range && to_player.magnitude < closest_distance) {
+                closest_distance = to_player.magnitude;
                 closest_enemy = grunt;
             }
         }
