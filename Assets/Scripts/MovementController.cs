@@ -10,10 +10,14 @@ public class MovementController : MonoBehaviour {
     const KeyCode DOWN_KEY = KeyCode.DownArrow;
     const KeyCode RIGHT_KEY = KeyCode.RightArrow;
     const KeyCode CRAWL_KEY = KeyCode.Q;
-    const KeyCode ATTACK_KEY = KeyCode.A;
+    const KeyCode GRAB_KEY = KeyCode.S;
+    const KeyCode KNOCK_KEY = KeyCode.X;
     float poscount = 0;
-    bool knock_lock;
-
+    bool knock_lock = false;
+    bool flip_lock = false;
+    bool holding_guard = false;
+    public LayerMask enemy_layer;
+    GameObject victim;
     // Player collider values
     Vector3 PLAYER_STANDING_COLLIDER_CENTER = new Vector3(0f, 0.5f, 0f);
     Vector3 PLAYER_STANDING_COLLIDER_SIZE = new Vector3(1f, 2f, 1f);
@@ -38,9 +42,10 @@ public class MovementController : MonoBehaviour {
 
     public enum movementState {
         RUN,
+        GRABBING,
         CRAWL,
         AGAINST_WALL,
-        ALONG_WALL
+        ALONG_WALL,
     };
     public movementState move_state = movementState.RUN;
 
@@ -77,12 +82,16 @@ public class MovementController : MonoBehaviour {
         }
         keepPlayerWithinPositionLimits();
 
-        if (Input.GetKey(ATTACK_KEY)) {
-            if (!knock_lock&& movementState.AGAINST_WALL == move_state) {
+        if (Input.GetKey(KNOCK_KEY)) {
+            if (!knock_lock && movementState.AGAINST_WALL == move_state) {
                 knock_lock = true;
-                Invoke("unlock_knock", 1f); //prevents knock spam
+                Invoke("unlockKnock", 1f); //prevents knock spam
                 Knock();
             }
+        }
+
+        if (Input.GetKey(GRAB_KEY)) {
+            resolveGrab();
         }
 
         if (Input.GetKeyDown(CRAWL_KEY)) {
@@ -94,11 +103,58 @@ public class MovementController : MonoBehaviour {
         velocity_last_frame = body.velocity;
 	}
 
-    void unlock_knock() {
+    void resolveGrab() {
+        if (move_state == movementState.RUN) {
+            RaycastHit hit_info;
+            Ray facing = new Ray(transform.position - transform.forward, transform.forward);
+            Debug.DrawRay(transform.position - transform.forward * 2, transform.forward, Color.blue, 2f);
+            Debug.DrawRay(transform.position, transform.right, Color.green, 4f);
+
+            if (Physics.SphereCast(facing, 1.1f, out hit_info, 2f, enemy_layer)) {
+                victim = hit_info.rigidbody.gameObject;
+                if (victim.GetComponent<Enemy>().current_state != EnemyState.KO &&
+                        victim.GetComponent<Enemy>().current_state != EnemyState.BEING_FLIPPED) {
+                    if (moveInput() && !body.isKinematic && !flip_lock)
+                        throwEnemy();
+                    else {
+                        move_state = movementState.GRABBING;
+                        victim.GetComponent<Enemy>().getGrabbed();
+                    }
+                }
+            }
+        } else if (move_state == movementState.GRABBING) {
+            if (victim.GetComponent<Enemy>().current_state != EnemyState.GRABBED) {
+                move_state = movementState.RUN;
+            }
+        }
+    }
+
+    void throwEnemy() {
+        flip_lock = true;
+        body.isKinematic = true;
+        GetComponent<Rigidbody>().GetComponent<Rigidbody>().isKinematic = true;
+        // Invoke("unlockFlip", 0.5f);
+        victim.GetComponent<Enemy>().getFlipped();
+    }
+
+    public void unlockFlip() {
+        flip_lock = false;
+        body.isKinematic = false;
+    }
+
+    void unlockKnock() {
         knock_lock = false;
     }
 
     bool lockControlsIfNeeded() {
+        if (flip_lock) {
+            if (victim.GetComponent<Enemy>().current_state != EnemyState.KO &&
+                    victim.GetComponent<Enemy>().current_state != EnemyState.BEING_FLIPPED) {
+                victim.GetComponent<Enemy>().getFlipped();
+            }
+            return true;
+        }
+
         if (under_obstacle_last_frame != playerIsUnderObstacle()) {
             control_lock_start_time = Time.time;
         }
@@ -111,7 +167,14 @@ public class MovementController : MonoBehaviour {
         return false;
     }
 
+    bool moveInput() {
+        return Input.GetKey(UP_KEY) || Input.GetKey(DOWN_KEY) || Input.GetKey(LEFT_KEY) || Input.GetKey(RIGHT_KEY);
+    }
+
     void setVelocityFromInput() {
+        if (flip_lock)
+            return;
+
         Vector3 vel = Vector3.zero;
         if (Input.GetKey(UP_KEY)) {
             vel.z += 1;  // Move up
@@ -128,7 +191,8 @@ public class MovementController : MonoBehaviour {
 
         if (move_state == movementState.CRAWL) {
             body.velocity = vel.normalized * crawl_speed;
-        } else {
+        }
+        else {
             body.velocity = vel.normalized * run_speed;
         }
     }
@@ -161,7 +225,8 @@ public class MovementController : MonoBehaviour {
             else if (move_state == movementState.AGAINST_WALL) {
                 updateAgainstWall();
             }
-        } else if (move_state != movementState.CRAWL) {
+        }
+        else if (move_state != movementState.CRAWL && move_state != movementState.GRABBING) {
             move_state = movementState.RUN;
             locked_direction = Vector3.zero;
         }
@@ -199,7 +264,8 @@ public class MovementController : MonoBehaviour {
             }
             zeroMovementInLockedDirection();
 
-        } else if (movingOppositeOfLockedDirection()) {
+        }
+        else if (movingOppositeOfLockedDirection()) {
             locked_direction = Vector3.zero;
             move_state = movementState.RUN;
         }
@@ -223,13 +289,14 @@ public class MovementController : MonoBehaviour {
             locked_direction = Vector3.zero;
             move_state = movementState.RUN;
             return;
-        } 
+        }
 
         if (!movingInLockedDirection()) {
             this.transform.position += this.transform.forward * 0.5f;
             locked_direction = Vector3.zero;
             move_state = movementState.RUN;
-        } else {
+        }
+        else {
             zeroMovementInLockedDirection();
         }
     }
@@ -268,25 +335,27 @@ public class MovementController : MonoBehaviour {
         }
 
         GameObject current_player_point = Instantiate(waypoint_prefab, transform.position, Quaternion.identity) as GameObject;
-        
         current_player_point.name = "player_pos" + poscount++;
-        GameObject  closest_enemy = gameObject;
+        GameObject closest_enemy = gameObject;
         float closest_distance = range + 10f;
         foreach (GameObject grunt in all_Enemy) {
-            Vector3 to_player = grunt.transform.position-transform.position;
-            if (to_player.magnitude < range && to_player.magnitude < closest_distance) {
+            bool is_this_even_possible = grunt.gameObject.GetComponent<Enemy>().current_state != EnemyState.KO && grunt.gameObject.GetComponent<Enemy>().current_state != EnemyState.BEING_FLIPPED;
+            Vector3 to_player = grunt.transform.position - transform.position;
+            if (is_this_even_possible && to_player.magnitude < range && to_player.magnitude < closest_distance) {
                 closest_distance = to_player.magnitude;
                 closest_enemy = grunt;
             }
         }
+
         if (closest_distance < range + 9f) {
             closest_enemy.GetComponent<Enemy>().investigate(current_player_point);
             current_player_point.GetComponent<PatrolPoint>().waiting = true;
         } else {
             current_player_point.GetComponent<PatrolPoint>().waiting = false;
         }
+
     }
-    
+
     void toggleCrawl() {
         if (move_state != movementState.CRAWL) {
             body.transform.position = new Vector3(body.transform.position.x, .25f, body.transform.position.z);
@@ -433,7 +502,8 @@ public class MovementController : MonoBehaviour {
         if (under_obstacle_last_frame) {
             player_collider.center = PLAYER_UNDER_OBSTACLE_COLLIDER_CENTER;
             player_collider.size = PLAYER_UNDER_OBSTACLE_COLLIDER_SIZE;
-        } else {
+        }
+        else {
             player_collider.center = PLAYER_CRAWLING_COLLIDER_CENTER;
             player_collider.size = PLAYER_CRAWLING_COLLIDER_SIZE;
         }
@@ -461,7 +531,8 @@ public class MovementController : MonoBehaviour {
 
             if (movingDiagonal()) {
                 move_state = movementState.ALONG_WALL;
-            } else {
+            }
+            else {
                 move_state = movementState.AGAINST_WALL;
                 body.transform.rotation = Quaternion.LookRotation(coll.contacts[0].normal);
             }
@@ -484,7 +555,8 @@ public class MovementController : MonoBehaviour {
         Vector3 vel = body.velocity;
         if (locked_direction.x != 0) {
             vel.x = 0;
-        } else if (locked_direction.z != 0) {
+        }
+        else if (locked_direction.z != 0) {
             vel.z = 0;
         }
         body.velocity = vel;
