@@ -31,6 +31,8 @@ public class MovementController : MonoBehaviour {
 
     public float run_speed = 10f;
     public float crawl_speed = 2f;
+    public float grabbing_speed = 7f;
+    public float against_wall_speed = 5f;
     public float rot_speed = 10f;
     public float control_change_delay = 0.5f;
 
@@ -191,8 +193,11 @@ public class MovementController : MonoBehaviour {
 
         if (move_state == movementState.CRAWL) {
             body.velocity = vel.normalized * crawl_speed;
-        }
-        else {
+        } else if (move_state == movementState.GRABBING) {
+            body.velocity = vel.normalized * grabbing_speed;
+        } else if (move_state == movementState.AGAINST_WALL) {
+            body.velocity = vel.normalized * against_wall_speed;
+        } else {
             body.velocity = vel.normalized * run_speed;
         }
     }
@@ -306,7 +311,9 @@ public class MovementController : MonoBehaviour {
             return;
         }
 
-        if (body.velocity != Vector3.zero) {
+        if (move_state == movementState.GRABBING) {
+            body.transform.forward = body.velocity.normalized * -1f;
+        } else if (body.velocity != Vector3.zero) {
             gameObject.transform.forward = body.velocity.normalized;
             if (move_state == movementState.CRAWL) {
                 body.transform.Rotate(new Vector3(90f, 0f, 0f));

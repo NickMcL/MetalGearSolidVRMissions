@@ -46,7 +46,8 @@ public class Enemy : MonoBehaviour {
     bool looking = false;
     Quaternion look_target;
 
-    public Material line_material;
+    public Material detect_material;
+    public Material alert_material;
     public int detect_area_total_vertices = 12;
     public float detect_area_line_width;
     GameObject[] detect_area_objects;
@@ -135,11 +136,12 @@ public class Enemy : MonoBehaviour {
             patrolUpdate();
         } else if (current_state == EnemyState.PATROL_RETURN) {
             if (search_path.Count == 0) {
-                resume_patrol();
+                resumePatrol();
             }
             patrolUpdate();
         } else if (current_state == EnemyState.SEARCHING) {
             searching();
+            patrolUpdate();
         }
     }
 
@@ -227,7 +229,7 @@ public class Enemy : MonoBehaviour {
     void updateGrab() {
         if (misc_counter2 > 0.03) {
             misc_counter2 = 0;
-            Vector3 p_forward = player.transform.forward * -1f;
+            Vector3 p_forward = player.transform.forward;
             Vector3 diag = p_forward + player.transform.up;
             Quaternion diag_dir = Quaternion.LookRotation(diag);
             diag = Vector3.Cross(transform.forward, diag);
@@ -313,7 +315,7 @@ public class Enemy : MonoBehaviour {
             mesh_agent.updateRotation = true;
             mesh_agent.updatePosition = true;
             body.freezeRotation = true;
-            resume_patrol();
+            resumePatrol();
         }
     }
 
@@ -393,17 +395,32 @@ public class Enemy : MonoBehaviour {
             detect_area_lines[i].SetVertexCount(2);
             detect_area_lines[i].SetWidth(
                 0, (2f * Mathf.PI * detect_range * ((detect_angle * 2) / 360f)) / detect_area_total_vertices);
-            detect_area_lines[i].material = line_material;
+            detect_area_lines[i].material = detect_material;
             detect_area_lines[i].SetColors(line_color_start, line_color_end);
         }
     }
 
     void drawDetectArea() {
+        if (current_state == EnemyState.GRABBED || current_state == EnemyState.KO ||
+                current_state == EnemyState.BEING_FLIPPED || current_state == EnemyState.GETTINGUP) {
+            removeDetectArea();
+            return;
+        } else {
+            enableDetectArea();
+        }
+
         float current_angle = -detect_angle;
         float angle_delta = (detect_angle * 2) / detect_area_total_vertices;
         Vector3 radar_lift = new Vector3(0f, 15f, 0f);
         Vector3 range_scale = new Vector3(detect_range, detect_range, detect_range);
         Vector3 arc_offset;
+
+        if (current_state == EnemyState.INVESTIGATE || current_state == EnemyState.SEARCHING ||
+                current_state == EnemyState.SEE_PLAYER) {
+            setDetectAreaMaterial(alert_material);
+        } else {
+            setDetectAreaMaterial(detect_material);
+        }
 
         for (int i = 0; i < detect_area_total_vertices; ++i) {
             detect_area_lines[i].SetPosition(0, this.transform.position + radar_lift);
@@ -411,6 +428,24 @@ public class Enemy : MonoBehaviour {
                 this.transform.forward, range_scale) + radar_lift;
             detect_area_lines[i].SetPosition(1, this.transform.position + arc_offset);
             current_angle += angle_delta;
+        }
+    }
+
+    void removeDetectArea() {
+        foreach (LineRenderer line in detect_area_lines) {
+            line.SetVertexCount(0);
+        }
+    }
+
+    void enableDetectArea() {
+        foreach (LineRenderer line in detect_area_lines) {
+            line.SetVertexCount(2);
+        }
+    }
+
+    void setDetectAreaMaterial(Material mat) {
+        foreach (LineRenderer line in detect_area_lines) {
+            line.material = mat;
         }
     }
 
@@ -438,7 +473,7 @@ public class Enemy : MonoBehaviour {
             if (current_patrol_point == next_point) {
                 search_path.Remove(next_point);
                 if (search_path.Count() == 0) {
-                    resume_patrol();
+                    resumePatrol();
                     return;
                 }
                 current_patrol_point = search_path.FirstOrDefault();
@@ -460,7 +495,7 @@ public class Enemy : MonoBehaviour {
         search_path.Clear();
     }
 
-    public void resume_patrol() {
+    public void resumePatrol() {
         if (current_state != EnemyState.PATROL_RETURN && current_state != EnemyState.PATROL) {
             search_path.Clear();
             current_state = EnemyState.PATROL_RETURN;
