@@ -107,7 +107,8 @@ public class Enemy : MonoBehaviour {
         if (touched_player) {
             look_target.SetLookRotation(player.transform.position - transform.position);
             transform.rotation = Quaternion.RotateTowards(transform.rotation, look_target, Time.deltaTime * 1000);
-            if(current_state != EnemyState.SEE_PLAYER) detectPlayer();
+            if (current_state != EnemyState.SEE_PLAYER)
+                detectPlayer();
             //return;
         }
 
@@ -253,7 +254,7 @@ public class Enemy : MonoBehaviour {
         body.freezeRotation = false;
         mesh_agent.destination = this.transform.position;
         //       player.GetComponent<Rigidbody>().isKinematic = true;
-        
+
         /// body.isKinematic=true;
         stop_watch = 0;
         //transform.rotation = player.transform.rotation;
@@ -481,8 +482,9 @@ public class Enemy : MonoBehaviour {
 
     bool playerInFieldOfView() {
         RaycastHit see_player;
-        Vector3 to_player = player.transform.position - transform.position;
+        Vector3 to_player = player.transform.position- transform.position;
         Physics.Raycast(this.transform.position, to_player, out see_player, player_and_walls);
+        Debug.DrawRay(transform.position + transform.up, to_player);
         if (Vector3.Angle(transform.forward, to_player) < detect_angle &&
                 see_player.collider.gameObject.tag == player.tag && see_player.distance < detect_range) {
             Debug.DrawRay(this.transform.position, to_player);
@@ -562,9 +564,13 @@ public class Enemy : MonoBehaviour {
     }
 
     void detectPlayer() {
-        if (playerInFieldOfView() && player.GetComponent<MovementController>().god_mode == false) {
+        if (playerInFieldOfView() && player.GetComponent<MovementController>().god_mode == false && current_state != EnemyState.SEE_PLAYER) {
             //    if (current_state != EnemyState.SEE_PLAYER)
-            AudioController.audioPlayer.spotSound();
+            body.drag = 1000;
+            if (player.GetComponent<MovementController>().seen == false)
+                AudioController.audioPlayer.spotSound();
+            player.GetComponent<MovementController>().seen = true;
+            touched_player = true;
             current_state = EnemyState.SEE_PLAYER;
             mesh_agent.destination = transform.position;
             this.GetComponent<Renderer>().material.color = surprised_color;
@@ -659,8 +665,7 @@ public class Enemy : MonoBehaviour {
         if (current_state != EnemyState.INVESTIGATE && current_state != EnemyState.PATROL_RETURN && current_state != EnemyState.SEARCHING) {
             if (!looker)
                 original_patrol_point = current_patrol_point;
-        }
-        else if (investigate_point != null) {
+        } else if (investigate_point != null) {
             investigate_point.GetComponent<PatrolPoint>().waiting = false;
         }
         current_state = EnemyState.INVESTIGATE;
@@ -733,7 +738,7 @@ public class Enemy : MonoBehaviour {
     }
 
     void OnCollisionEnter(Collision coll) {
-        if (coll.gameObject.tag == "Player" && (current_state == EnemyState.PATROL||current_state== EnemyState.PATROL_RETURN|| current_state==EnemyState.SEARCHING || current_state==EnemyState.INVESTIGATE)) {
+        if (coll.gameObject.tag == "Player" && player.GetComponent<MovementController>().god_mode==false && (current_state == EnemyState.PATROL || current_state == EnemyState.PATROL_RETURN || current_state == EnemyState.SEARCHING || current_state == EnemyState.INVESTIGATE)) {
             mesh_agent.updateRotation = false;
             stun_timer = 0;
             punch_count = 0;
@@ -744,6 +749,13 @@ public class Enemy : MonoBehaviour {
             body.freezeRotation = false;
             touched_player = true;
             current_state = EnemyState.SEE_PLAYER;
+            if (player.GetComponent<MovementController>().seen == false)
+                AudioController.audioPlayer.spotSound();
+            player.GetComponent<MovementController>().seen = true;
+            touched_player = true;
+            current_state = EnemyState.SEE_PLAYER;
+            mesh_agent.destination = transform.position;
+            this.GetComponent<Renderer>().material.color = surprised_color;
         }
         if (coll.gameObject.tag == "Ground" && current_state == EnemyState.KO)
             AudioController.audioPlayer.hitGround();

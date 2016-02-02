@@ -20,6 +20,8 @@ public class AudioController : MonoBehaviour {
     public AudioClip hit_ground;
     public AudioClip aah;
     public AudioClip spawn;
+    public AudioClip gun_shot;
+    public AudioClip menu_sound;
     float punch_delay = 0;
     float step_delay = 0;
     float cant_delay = 0;
@@ -86,6 +88,9 @@ public class AudioController : MonoBehaviour {
         audio.PlayOneShot(what, volume);
 
     }
+    public void gunshot() {
+        audio.PlayOneShot(gun_shot,volume);
+    }
     public void hitGround() {
         audio.PlayOneShot(hit_ground, volume);
     }
@@ -99,6 +104,9 @@ public class AudioController : MonoBehaviour {
     }
     public void spawnSound() {
         audio.PlayOneShot(spawn, volume);
+    }
+    public void menuSound() {
+        audio.PlayOneShot(menu_sound, volume);
     }
     void gameOver() {
         audio.PlayOneShot(GG, volume);

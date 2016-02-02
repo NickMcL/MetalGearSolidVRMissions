@@ -19,6 +19,7 @@ public class MovementController : MonoBehaviour {
     public bool god_mode = false;
     public LayerMask enemy_layer;
     float invincible_delay = 0;
+    public bool seen=false;
     GameObject victim;
     // Player collider values
     Vector3 PLAYER_STANDING_COLLIDER_CENTER = new Vector3(0f, 0.5f, 0f);
@@ -94,7 +95,7 @@ public class MovementController : MonoBehaviour {
 
     // Update is called once per frame
     void Update() {
-        if (Time.timeScale != 1)
+        if (seen)
             return;
         if (spawning_player) {
             growSpawnSphere();
@@ -713,6 +714,7 @@ GameObject head = gameObject.transform.GetChild(0).gameObject;
 
     public void spawnPlayer() {
         spawning_player = true;
+        AudioController.audioPlayer.spawnSound();
         spawn_sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         spawn_sphere.GetComponent<Renderer>().material = spawn_sphere_material;
         Destroy(spawn_sphere.GetComponent<SphereCollider>());
