@@ -23,7 +23,6 @@ public class MissionFailed : MonoBehaviour {
     public Color unselected_color;
 
     public static string current_level_scene_name;
-    public string start_menu_scene_name;
 
     int selected_option;
 
@@ -62,7 +61,7 @@ public class MissionFailed : MonoBehaviour {
             if (selected_option == 0) {
                 SceneManager.LoadScene(current_level_scene_name);
             } else if (selected_option == 1) {
-                SceneManager.LoadScene(start_menu_scene_name);
+                SceneManager.LoadScene(SceneNames.START_MENU);
             }
         }
 

@@ -4,11 +4,11 @@ using System.Collections;
 
 public class LevelSelect : MonoBehaviour {
     string[] LEVEL_SCENE_NAMES = {
-        "_Level_1",
-        "_Level_2F",
-        "_Level_3",
-        "_Level_Custom_NM",
-        "_Level_Custom_AJ",
+        SceneNames.LEVEL_1,
+        SceneNames.LEVEL_2,
+        SceneNames.LEVEL_3,
+        SceneNames.CUSTOM_NM,
+        SceneNames.CUSTOM_AJ,
     };
 
     const KeyCode UP_KEY = KeyCode.UpArrow;
