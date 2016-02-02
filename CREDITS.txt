@@ -1,0 +1,4 @@
+The font used in the game (Arcade Classic) was taken from http://www.1001fonts.com/arcadeclassic-font.html
+The image used on the start menu screen was taken from http://s.cdaction.pl/obrazki/metal-gear-solid-vr-missions-reedycja-ps3-vita-psp_175sz.jpg
+
+All of the sound effects and music in the game are from either Metal Gear Solid VR Missions, Metal Gear Solid, or Metal Gear Solid 2.

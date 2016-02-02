@@ -6,16 +6,16 @@ using System.Collections.Generic;
 
 public class CameraController : MonoBehaviour {
     Dictionary<string, string> START_LEVEL_TEXT = new Dictionary<string, string>() {
-        {SceneNames.LEVEL_1, "SNEAKING  MODE\nNO  WEAPON  LEVEL  1\n\nDon't  be  seen  by  enemy  soldiers  and  head  for  the  goal!   " +
-            "This  training  mission  is  aborted  if  you  are  spotted." },
-        {SceneNames.LEVEL_2, "SNEAKING  MODE\nNO  WEAPON  LEVEL  2\n\nUse  the  Radar  effectively  and  head  " +
-            "for  the  goal!   There  is  a  blind  spot  behind  the  enemy." },
-        {SceneNames.LEVEL_3, "SNEAKING  MODE\nNO  WEAPON  LEVEL  3\n\nUse  shortcuts  wisely  and  head  for  " +
-            "the  goal!   Infiltrate  by  crawling  through  low  ceiling  areas." },
-        {SceneNames.CUSTOM_NM, "SNEAKING  MODE\nNO  WEAPON  CUSTOM  LEVEL  1\n\nNavigate  around  the  guards  careful  " +
-            "and  head  for  the  goal!   Try   to  lure  guards  away  from  tight  areas." },
-        {SceneNames.CUSTOM_AJ, "SNEAKING  MODE\nNO  WEAPON  CUSTOM  LEVEL  2\n\nUse  all  of  the  skills  at  your  " +
-            "disposal  and  head  for  the  goal!   Remember  that  you  can  flip,  punch,  or  grab  troublesome  guards."},
+        {SceneNames.LEVEL_1, "SNEAKING  MODE\nNO  WEAPON  LEVEL  1\n\nDon't  be  seen  by  enemy  soldiers  and\nhead  for  the  goal!   " +
+            "This  training\nmission  is  aborted  if  you  are\nspotted." },
+        {SceneNames.LEVEL_2, "SNEAKING  MODE\nNO  WEAPON  LEVEL  2\n\nUse  the  Radar  effectively  and  head\n" +
+            "for  the  goal!   There  is  a  blind  spot\nbehind  the  enemy." },
+        {SceneNames.LEVEL_3, "SNEAKING  MODE\nNO  WEAPON  LEVEL  3\n\nUse  shortcuts  wisely  and  head  for\n" +
+            "the  goal!   Infiltrate  by  crawling\nthrough  low  ceiling  areas." },
+        {SceneNames.CUSTOM_NM, "SNEAKING  MODE\nNO  WEAPON  CUSTOM  LEVEL  1\n\nCarefully  but  quickly  navigate\naround  the  guards  " +
+            "and  head  for  the\ngoal!   Try   to  lure  guards  away  from\ntight  areas." },
+        {SceneNames.CUSTOM_AJ, "SNEAKING  MODE\nNO  WEAPON  CUSTOM  LEVEL  2\n\nUse  all  of  the  skills  at  your\n" +
+            "disposal  and  head  for  the  goal!\nRemember  that  you  can  flip,  punch,\nor  grab  troublesome  guards."},
     };
 
     Dictionary<string, string> NEXT_LEVEL = new Dictionary<string, string>() {
@@ -39,7 +39,7 @@ public class CameraController : MonoBehaviour {
         {SceneNames.LEVEL_2, new Vector3(1f, 0f, 1f) },
         {SceneNames.LEVEL_3, new Vector3(1f, 0f, 1f) },
         {SceneNames.CUSTOM_NM, new Vector3(1f, 0f, -1f) },
-        {SceneNames.CUSTOM_AJ, new Vector3(1f, 0f, 1f) },
+        {SceneNames.CUSTOM_AJ, new Vector3(1f, 0f, -1f) },
     };
 
     Dictionary<string, Vector3> PLAYER_SPAWN_POSITIONS = new Dictionary<string, Vector3>() {
@@ -390,6 +390,7 @@ public class CameraController : MonoBehaviour {
         camera_state = CameraState.END_LEVEL;
         lerp_start_time = Time.time;
         end_level_start_time = lerp_start_time;
+        AudioController.audioPlayer.missionCompleteSound();
     }
 
     public void startNextLevel() {
@@ -415,7 +416,7 @@ public class CameraController : MonoBehaviour {
             c.a = 1;
             GUI.color = c;
             GUI.skin = start_level_gui_skin;
-            GUI.skin.box.fontSize = Mathf.RoundToInt(Screen.width * 0.04f);
+            GUI.skin.box.fontSize = Mathf.RoundToInt(Screen.width * 0.037f);
             GUI.skin.box.padding = new RectOffset(GUI.skin.box.fontSize, GUI.skin.box.fontSize,
                     Mathf.RoundToInt(GUI.skin.box.fontSize * 0.75f), Mathf.RoundToInt(GUI.skin.box.fontSize * 0.75f));
             GUI.Box(new Rect(Screen.width * 0.125f, Screen.height * 0.25f, Screen.width * 0.75f, Screen.height * 0.5f), getStartLevelText());

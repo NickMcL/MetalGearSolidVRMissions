@@ -76,6 +76,7 @@ public class Enemy : MonoBehaviour {
         current_state = EnemyState.PATROL;
         search_path = new List<GameObject>();
         possible_path = new List<GameObject>();
+        drawDetectArea();
     }
 
     void Awake() {

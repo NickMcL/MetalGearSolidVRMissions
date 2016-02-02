@@ -31,6 +31,7 @@ public class LevelSelect : MonoBehaviour {
     public Color unselected_color;
 
     int selected_level;
+    bool sound_waiting;
 
 	// Use this for initialization
 	void Start () {
@@ -59,12 +60,17 @@ public class LevelSelect : MonoBehaviour {
         selected_level = 0;
         level_texts[0].color = selected_color;
         SelectorBox.box.setStartPosition(getSelectedLevelPosition());
+        sound_waiting = false;
 	}
 
     // Update is called once per frame
     void Update() {
+        if (sound_waiting) {
+            return;
+        }
         if (Input.GetKeyDown(START_KEY) || Input.GetKeyDown(CONFIRM_KEY)) {
             AudioController.audioPlayer.gunshot();
+            sound_waiting = true;
             Invoke("getScene", 2f);
         }
 
@@ -86,9 +92,12 @@ public class LevelSelect : MonoBehaviour {
         }
         level_texts[selected_level].color = selected_color;
     }
+    
     void getScene() {
+        sound_waiting = false;
         SceneManager.LoadScene(LEVEL_SCENE_NAMES[selected_level]);
     }
+
     Vector3 getSelectedLevelPosition() {
         float level_offset = header_offset - level_list_offset_from_header -
             (between_level_offset * selected_level);

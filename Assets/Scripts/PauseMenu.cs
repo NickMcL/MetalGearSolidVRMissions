@@ -19,7 +19,6 @@ public class PauseMenu : MonoBehaviour {
     const KeyCode DOWN_KEY = KeyCode.DownArrow;
     const KeyCode START_KEY = KeyCode.Return;
     const KeyCode CONFIRM_KEY = KeyCode.S;
-    const KeyCode BACK_KEY = KeyCode.A;
 
     public GameObject header_text_object;
     public GameObject[] menu_option_objects;
@@ -42,6 +41,7 @@ public class PauseMenu : MonoBehaviour {
     int selected_option;
     float control_delay_duraiton = 0.2f;
     float control_delay_start;
+    bool sound_waiting;
 
 	// Use this for initialization
 	void Start () {
@@ -60,17 +60,16 @@ public class PauseMenu : MonoBehaviour {
         selected_option = 0;
         menu_options[0].color = selected_color;
         game_paused = false;
+        sound_waiting = false;
     }
 
     // Update is called once per frame
     void Update() {
-        setTextPositions();
-        if (!game_paused || (Time.time - control_delay_start) < control_delay_duraiton) {
+        if (sound_waiting) {
             return;
         }
-        if (Input.GetKeyDown(BACK_KEY)) {
-            game_paused = false;
-            CameraController.cam_control.unpause();
+        setTextPositions();
+        if (!game_paused || (Time.time - control_delay_start) < control_delay_duraiton) {
             return;
         }
         if (Input.GetKeyDown(START_KEY) || Input.GetKeyDown(CONFIRM_KEY)) {
@@ -84,11 +83,13 @@ public class PauseMenu : MonoBehaviour {
             if (selected_option == -1) {
                 selected_option = menu_options.Length - 1;
             }
+            AudioController.audioPlayer.menuSound();
         } else if (Input.GetKeyDown(DOWN_KEY)) {
             ++selected_option;
             if (selected_option == menu_options.Length) {
                 selected_option = 0;
             }
+            AudioController.audioPlayer.menuSound();
         }
         menu_options[selected_option].color = selected_color;
     }
@@ -98,9 +99,13 @@ public class PauseMenu : MonoBehaviour {
             game_paused = false;
             CameraController.cam_control.unpause();
         } else if (action == PauseOption.RESTART) {
+            AudioController.audioPlayer.audio.Stop();
             SceneManager.LoadScene(SceneManager.GetActiveScene().name);
         } else if (action == PauseOption.EXIT) {
-            SceneManager.LoadScene(SceneNames.START_MENU);
+            AudioController.audioPlayer.audio.Stop();
+            AudioController.audioPlayer.exitSound();
+            sound_waiting = true;
+            Invoke("loadStartMenu", 0.75f);
         }
     }
 
@@ -125,6 +130,11 @@ public class PauseMenu : MonoBehaviour {
             menu_options[i].color = unselected_color;
             cur_level_offset -= between_level_offset;
         }
+    }
+
+    void loadStartMenu() {
+        sound_waiting = false;
+        SceneManager.LoadScene(SceneNames.START_MENU);
     }
 
 }

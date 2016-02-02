@@ -9,9 +9,9 @@ public class MovementController : MonoBehaviour {
     const KeyCode LEFT_KEY = KeyCode.LeftArrow;
     const KeyCode DOWN_KEY = KeyCode.DownArrow;
     const KeyCode RIGHT_KEY = KeyCode.RightArrow;
-    const KeyCode CRAWL_KEY = KeyCode.Q;
-    const KeyCode GRAB_KEY = KeyCode.S;
-    const KeyCode KNOCK_KEY = KeyCode.X;
+    const KeyCode CRAWL_KEY = KeyCode.A;
+    const KeyCode GRAB_KEY = KeyCode.Q;
+    const KeyCode KNOCK_KEY = KeyCode.S;
     const KeyCode GOD_KEY = KeyCode.I;
     float poscount = 0;
     bool knock_lock = false;
@@ -111,9 +111,8 @@ public class MovementController : MonoBehaviour {
         if (Input.GetKey(GOD_KEY) && invincible_delay == 0) {
             god_mode = !god_mode;
             invincible_delay = 0.5f;
-GameObject head = gameObject.transform.GetChild(0).gameObject;
+            GameObject head = gameObject.transform.GetChild(0).gameObject;
             if (god_mode) {
-                
                 head.GetComponent<Renderer>().material = spawn_sphere_material;
             } else {
                 head.GetComponent<Renderer>().material = head_material;
@@ -187,7 +186,7 @@ GameObject head = gameObject.transform.GetChild(0).gameObject;
         adjustPlayerCollider();
         velocity_last_frame = body.velocity;
         if (body.velocity.magnitude > 0) {
-            if (move_state == movementState.RUN) {
+            if (move_state == movementState.RUN || move_state == movementState.ALONG_WALL) {
                 AudioController.audioPlayer.stepSound();
             } else if (move_state == movementState.CRAWL) {
                 AudioController.audioPlayer.crawlSound();
@@ -580,7 +579,6 @@ GameObject head = gameObject.transform.GetChild(0).gameObject;
         Physics.Raycast(this.transform.position, this.transform.right, out right_hit_info, 2f, layer_mask);
         Physics.Raycast(this.transform.position, this.transform.right * -1, out left_hit_info, 2f, layer_mask);
         if (right_wall && left_wall) {
-            print(right_hit_info.distance + " " + left_hit_info.distance);
             if (right_hit_info.distance > left_hit_info.distance)
                 CameraController.cam_control.moveToLookDownHallway(this.transform, right_hit_info.distance, true);
             else

@@ -36,6 +36,7 @@ public class LevelFinish : MonoBehaviour {
     public Color unselected_color;
 
     int selected_option;
+    bool sound_waiting;
 
 	// Use this for initialization
 	void Start () {
@@ -68,24 +69,34 @@ public class LevelFinish : MonoBehaviour {
         selected_option = 0;
         option_texts[0].color = selected_color;
         SelectorBox.box.setStartPosition(getSelectedLevelPosition());
+        sound_waiting = false;
 	}
 
     // Update is called once per frame
     void Update() {
+        if (sound_waiting) {
+            return;
+        }
         if (Input.GetKeyDown(START_KEY) || Input.GetKeyDown(CONFIRM_KEY)) {
+            sound_waiting = true;
             if (last_level) {
                 if (selected_option == 0) {
-                    SceneManager.LoadScene(current_level_scene_name);
+                    AudioController.audioPlayer.gunshot();
+                    Invoke("loadCurrentLevel", 2.5f);
                 } else if (selected_option == 1) {
-                    SceneManager.LoadScene(SceneNames.START_MENU);
+                    AudioController.audioPlayer.exitSound();
+                    Invoke("loadStartMenu", 0.75f);
                 }
             } else {
                 if (selected_option == 0) {
-                    SceneManager.LoadScene(next_level_scene_name);
+                    AudioController.audioPlayer.gunshot();
+                    Invoke("loadNextLevel", 2.5f);
                 } else if (selected_option == 1) {
-                    SceneManager.LoadScene(current_level_scene_name);
+                    AudioController.audioPlayer.gunshot();
+                    Invoke("loadCurrentLevel", 2.5f);
                 } else if (selected_option == 2) {
-                    SceneManager.LoadScene(SceneNames.START_MENU);
+                    AudioController.audioPlayer.gunshot();
+                    Invoke("loadStartMenu", 0.75f);
                 }
             }
         }
@@ -97,12 +108,14 @@ public class LevelFinish : MonoBehaviour {
                 selected_option = option_texts.Length - 1;
             }
             SelectorBox.box.moveSelectorBox(getSelectedLevelPosition());
+            AudioController.audioPlayer.menuSound();
         } else if (Input.GetKeyDown(DOWN_KEY)) {
             ++selected_option;
             if (selected_option == option_texts.Length) {
                 selected_option = 0;
             }
             SelectorBox.box.moveSelectorBox(getSelectedLevelPosition());
+            AudioController.audioPlayer.menuSound();
         }
         option_texts[selected_option].color = selected_color;
     }
@@ -120,5 +133,20 @@ public class LevelFinish : MonoBehaviour {
             last_level_text_objects[i - 1] = option_text_objects[i];
         }
         option_text_objects = last_level_text_objects;
+    }
+
+    void loadNextLevel() {
+        sound_waiting = false;
+        SceneManager.LoadScene(next_level_scene_name);
+    }
+
+    void loadCurrentLevel() {
+        sound_waiting = false;
+        SceneManager.LoadScene(current_level_scene_name);
+    }
+
+    void loadStartMenu() {
+        sound_waiting = false;
+        SceneManager.LoadScene(SceneNames.START_MENU);
     }
 }

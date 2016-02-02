@@ -54,6 +54,7 @@ public class StartMenu : MonoBehaviour {
 
         if (fade_start_text) {
             if (Input.GetKey(START_KEY)) {
+                AudioController.audioPlayer.audio.Stop();
                 SceneManager.LoadScene(level_select_scene_name);
             }
 

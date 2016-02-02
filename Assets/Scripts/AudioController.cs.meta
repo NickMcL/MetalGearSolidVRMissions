@@ -1,14 +1,31 @@
 fileFormatVersion: 2
 guid: 8ca4e980566bb4e46b85eea88ce09572
-timeCreated: 1454393329
+timeCreated: 1454423177
 licenseType: Free
 MonoImporter:
   serializedVersion: 2
   defaultReferences:
+  - audio: {instanceID: 0}
   - punch: {fileID: 8300000, guid: fc86a3696a4b98943b932b3d1916d562, type: 3}
   - step: {fileID: 8300000, guid: 4dd28d420065fbb4dbc8489d8275101e, type: 3}
   - knock: {fileID: 8300000, guid: 4e12fde432b140543832e709fea9e6a7, type: 3}
   - spotted: {fileID: 8300000, guid: f049c7f1769cef543be59e4833357816, type: 3}
+  - GG: {instanceID: 0}
+  - grab: {instanceID: 0}
+  - choke: {instanceID: 0}
+  - whiff: {instanceID: 0}
+  - crouch: {instanceID: 0}
+  - crawl: {instanceID: 0}
+  - cant: {instanceID: 0}
+  - what: {instanceID: 0}
+  - hit_ground: {instanceID: 0}
+  - aah: {instanceID: 0}
+  - spawn: {instanceID: 0}
+  - gun_shot: {instanceID: 0}
+  - menu_sound: {instanceID: 0}
+  - exit_sound: {instanceID: 0}
+  - mission_complete_sound: {fileID: 8300000, guid: dce8abfefb7327d4180b79c821e7e1d9,
+      type: 3}
   executionOrder: 0
   icon: {instanceID: 0}
   userData: 
