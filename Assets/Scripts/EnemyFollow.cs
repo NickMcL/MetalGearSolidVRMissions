@@ -11,6 +11,8 @@ public class EnemyFollow : MonoBehaviour {
 
     // Update is called once per frame
     void Update() {
-        gameObject.transform.position = enemy.transform.position;
+        if (enemy != null) {
+            gameObject.transform.position = enemy.transform.position;
+        }
     }
 }

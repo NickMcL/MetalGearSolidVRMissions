@@ -79,6 +79,12 @@ public class Enemy : MonoBehaviour {
 
     // Update is called once per frame
     void Update() {
+        if (!CameraController.cam_control.playerHasControl() || CameraController.cam_control.game_paused) {
+            mesh_agent.Stop();
+            body.velocity = Vector3.zero;
+            return;
+        }
+        mesh_agent.Resume();
         drawDetectArea();
 
         if (current_state == EnemyState.BEING_FLIPPED) {
