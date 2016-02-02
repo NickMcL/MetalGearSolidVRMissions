@@ -8,11 +8,13 @@ public class RadarController : MonoBehaviour {
 	// Use this for initialization
 	void Start () {
         radar_camera = this.gameObject.GetComponent<Camera>();
+        radar_camera.enabled = false;
     }
 	
 	// Update is called once per frame
 	void Update () {
-        if (MovementController.player.under_obstacle_last_frame) {
+        if (MovementController.player.under_obstacle_last_frame ||
+                !CameraController.cam_control.playerHasControl()) {
             radar_camera.enabled = false;
         } else {
             radar_camera.enabled = true;

@@ -33,7 +33,7 @@ public class MovementController : MonoBehaviour {
     public float crawl_speed = 2f;
     public float grabbing_speed = 7f;
     public float against_wall_speed = 5f;
-    public float rot_speed = 10f;
+    public float rot_speed = 30f;
     public float control_change_delay = 0.5f;
 
     // Position limits
@@ -57,6 +57,15 @@ public class MovementController : MonoBehaviour {
     bool hit_corner;
     float control_lock_start_time;
 
+    public float spawn_duration = 1.0f;
+    public float unspawn_duration = 0.5f;
+    public Vector3 spawn_sphere_max_size = new Vector3(1.5f, 1.5f, 1.5f);
+    public Material spawn_sphere_material;
+    public GameObject spawn_sphere;
+    bool spawning_player;
+    bool unspawning_player;
+    float spawn_start_time;
+
     void Awake() {
         player = this;
     }
@@ -65,21 +74,43 @@ public class MovementController : MonoBehaviour {
     void Start() {
         body = gameObject.GetComponent<Rigidbody>();
         initPositionLimits();
+
+        BoxCollider player_collider = gameObject.GetComponent<BoxCollider>();
+        player_collider.center = PLAYER_STANDING_COLLIDER_CENTER;
+        player_collider.size = PLAYER_STANDING_COLLIDER_SIZE;
+
         control_lock_start_time = 0f;
         under_obstacle_last_frame = false;
         hit_corner = false;
+        spawning_player = false;
+        unspawning_player = false;
     }
 
     // Update is called once per frame
     void Update() {
-        if (move_state == movementState.GRABBING)
-            resolveGrab();
-        if (knock_lock || flip_lock)
+        if (spawning_player) {
+            growSpawnSphere();
+        }
+        if (unspawning_player) {
+            shrinkSpawnSphere();
+        }
+        if (!CameraController.cam_control.playerHasControl() || CameraController.cam_control.game_paused) {
+            body.velocity = Vector3.zero;
             return;
+        }
+
+        if (move_state == movementState.GRABBING) {
+            resolveGrab();
+        }
+        if (knock_lock || flip_lock) {
+            return;
+        }
+
         if (!lockControlsIfNeeded()) {
             if (under_obstacle_last_frame) {
                 updateUnderObstacleTransformFromInput();
-            } else {
+            }
+            else {
                 setVelocityFromInput();
                 updateWallMovement();
                 updateForwardDirection();
@@ -93,10 +124,11 @@ public class MovementController : MonoBehaviour {
                 body.velocity = Vector3.zero;
                 if (movementState.AGAINST_WALL == move_state) {
                     knock_lock = true;
-
                     Knock();
-                } else
+                }
+                else {
                     punchCheck();
+                }
                 Invoke("unlockKnock", 0.3f); //prevents knock spam
             }
         }
@@ -113,8 +145,10 @@ public class MovementController : MonoBehaviour {
                     Invoke("unlockKnock", 0.1f);
                 }
                 choke_timer = 0.1f;
-            } else
+            }
+            else {
                 choke_timer -= Time.deltaTime;
+            }
             if (choke_count > 10) {
                 victim.GetComponent<Enemy>().die();
                 choke_count = 0;
@@ -130,14 +164,13 @@ public class MovementController : MonoBehaviour {
         adjustCamera();
         adjustPlayerCollider();
         velocity_last_frame = body.velocity;
-      if (body.velocity.magnitude > 0)
-        {
-          if(move_state ==  movementState.RUN)
-          AudioController.audioPlayer.stepSound();
-
+        if (body.velocity.magnitude > 0) {
+            if (move_state == movementState.RUN) {
+                AudioController.audioPlayer.stepSound();
+            }
         }
-
     }
+
     void punchCheck() {
         if (move_state == movementState.RUN) {
             RaycastHit hit_info;
@@ -157,6 +190,7 @@ public class MovementController : MonoBehaviour {
             }
         }
     }
+
     void resolveGrab() {
         if (move_state == movementState.RUN) {
             body.velocity = Vector3.zero;
@@ -650,5 +684,55 @@ public class MovementController : MonoBehaviour {
             return false;
         }
         return true;
+    }
+
+    public void spawnPlayer() {
+        spawning_player = true;
+        spawn_sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        spawn_sphere.GetComponent<Renderer>().material = spawn_sphere_material;
+        Destroy(spawn_sphere.GetComponent<SphereCollider>());
+        spawn_sphere.transform.position = this.transform.position;
+        spawn_sphere.transform.localScale = Vector3.zero;
+        spawn_start_time = Time.time;
+    }
+
+    public void unspawnPlayer() {
+        unspawning_player = true;
+        spawn_sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        spawn_sphere.GetComponent<Renderer>().material = spawn_sphere_material;
+        Destroy(spawn_sphere.GetComponent<SphereCollider>());
+        spawn_sphere.transform.position = this.transform.position;
+        spawn_sphere.transform.localScale = spawn_sphere_max_size;
+        spawn_start_time = Time.time;
+    }
+
+    void growSpawnSphere() {
+        if (spawn_sphere.transform.localScale == spawn_sphere_max_size) {
+            Destroy(spawn_sphere);
+            spawning_player = false;
+            CameraController.cam_control.playerSpawned();
+            return;
+        }
+
+        spawn_sphere.transform.localScale = Vector3.Lerp(Vector3.zero, spawn_sphere_max_size,
+            (Time.time - spawn_start_time) / spawn_duration);
+    }
+
+    void shrinkSpawnSphere() {
+        if (spawn_sphere.transform.localScale == Vector3.zero) {
+            Destroy(spawn_sphere);
+            unspawning_player = false;
+            CameraController.cam_control.startNextLevel();
+            return;
+        }
+
+        spawn_sphere.transform.localScale = Vector3.Lerp(spawn_sphere_max_size, Vector3.zero,
+            (Time.time - spawn_start_time) / unspawn_duration);
+    }
+
+    void OnTriggerEnter(Collider coll) {
+        if (coll.gameObject.tag == "EndPoint" && CameraController.cam_control.playerHasControl()) {
+            CameraController.cam_control.endLevel();
+        }
     }
 }

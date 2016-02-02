@@ -11,8 +11,11 @@ public class EnemyFollow : MonoBehaviour {
 
     // Update is called once per frame
     void Update() {
-        if (enemy.GetComponent<Enemy>().dead)
-            Destroy(this.gameObject);
-        gameObject.transform.position = enemy.transform.position;
+        if (enemy != null) {
+            if (enemy.GetComponent<Enemy>() && enemy.GetComponent<Enemy>().dead) {
+                Destroy(this.gameObject);
+            }
+            gameObject.transform.position = enemy.transform.position;
+        }
     }
 }
