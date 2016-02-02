@@ -17,6 +17,7 @@ public class AudioController : MonoBehaviour {
     public AudioClip cant;
     public AudioClip what;
     public AudioClip hit_ground;
+    public AudioClip aah;
     float punch_delay = 0;
     float step_delay = 0;
     float cant_delay = 0;
@@ -81,6 +82,9 @@ public class AudioController : MonoBehaviour {
        audio.Stop();
        audio.PlayOneShot(spotted,volume);
        Invoke("gameOver", 0.3f);
+   }
+   public void aahSound() {
+       audio.PlayOneShot(aah,volume);
    }
    void gameOver() {
         audio.PlayOneShot(GG);

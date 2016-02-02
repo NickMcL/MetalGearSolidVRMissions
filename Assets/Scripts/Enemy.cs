@@ -99,7 +99,8 @@ public class Enemy : MonoBehaviour {
         drawDetectArea();
         if (touched_player) {
             look_target.SetLookRotation(player.transform.position - transform.position);
-            transform.rotation = Quaternion.RotateTowards(transform.rotation, look_target, Time.deltaTime * 500);
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, look_target, Time.deltaTime * 1000);
+            if(current_state != EnemyState.SEE_PLAYER) detectPlayer();
             //return;
         }
 
@@ -436,6 +437,7 @@ public class Enemy : MonoBehaviour {
             target.y += 1;
             body.AddForceAtPosition(push, target);
             body.AddTorque(player.transform.right * -2000f);
+            AudioController.audioPlayer.aahSound();
             getKOd();
             return;
         }
@@ -554,6 +556,7 @@ public class Enemy : MonoBehaviour {
             //    if (current_state != EnemyState.SEE_PLAYER)
             AudioController.audioPlayer.spotSound();
             current_state = EnemyState.SEE_PLAYER;
+            mesh_agent.destination = transform.position;
             this.GetComponent<Renderer>().material.color = surprised_color;
 
         }
@@ -721,6 +724,11 @@ public class Enemy : MonoBehaviour {
     void OnCollisionEnter(Collision coll) {
         if (coll.gameObject.tag == "Player" && (current_state == EnemyState.PATROL||current_state== EnemyState.PATROL_RETURN|| current_state==EnemyState.SEARCHING || current_state==EnemyState.INVESTIGATE)) {
             mesh_agent.updateRotation = false;
+            stun_timer = 0;
+            punch_count = 0;
+            GetComponent<BoxCollider>().enabled = false;
+            body.useGravity = false;
+            body.drag = 1000;
             mesh_agent.destination = transform.position;
             body.freezeRotation = false;
             touched_player = true;
