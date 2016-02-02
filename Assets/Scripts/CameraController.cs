@@ -9,7 +9,8 @@ public class CameraController : MonoBehaviour {
         {SceneNames.LEVEL_1, SceneNames.LEVEL_2 },
         {SceneNames.LEVEL_2, SceneNames.LEVEL_3 },
         {SceneNames.LEVEL_3, SceneNames.CUSTOM_NM },
-        {SceneNames.CUSTOM_NM, null },
+        {SceneNames.CUSTOM_NM, SceneNames.CUSTOM_AJ },
+        {SceneNames.CUSTOM_AJ, null },
     };
 
     Dictionary<string, Vector3> LEVEL_END_POINT_POSITIONS = new Dictionary<string, Vector3>() {
@@ -17,6 +18,7 @@ public class CameraController : MonoBehaviour {
         {SceneNames.LEVEL_2, new Vector3(10f, 2f, 10f) },
         {SceneNames.LEVEL_3, new Vector3(10f, 2f, 9f) },
         {SceneNames.CUSTOM_NM, new Vector3(11.5f, 2f, -21f) },
+        {SceneNames.CUSTOM_AJ, new Vector3(73f, 2f, -13f) },
     };
 
     Dictionary<string, Vector3> LEVEL_END_CAMERA_SCALE = new Dictionary<string, Vector3>() {
@@ -24,6 +26,7 @@ public class CameraController : MonoBehaviour {
         {SceneNames.LEVEL_2, new Vector3(1f, 0f, 1f) },
         {SceneNames.LEVEL_3, new Vector3(1f, 0f, 1f) },
         {SceneNames.CUSTOM_NM, new Vector3(1f, 0f, -1f) },
+        {SceneNames.CUSTOM_AJ, new Vector3(1f, 0f, 1f) },
     };
 
     Dictionary<string, Vector3> PLAYER_SPAWN_POSITIONS = new Dictionary<string, Vector3>() {
@@ -31,6 +34,7 @@ public class CameraController : MonoBehaviour {
         {SceneNames.LEVEL_2, new Vector3(-10f, 1f, -10f) },
         {SceneNames.LEVEL_3, new Vector3(-4f, 1f, -9f) },
         {SceneNames.CUSTOM_NM, new Vector3(-22.5f, 1f, -23f) },
+        {SceneNames.CUSTOM_AJ, new Vector3(2f, 1f, 0f) },
     };
 
     Dictionary<string, float> START_PAN_HEIGHT = new Dictionary<string, float>() {
@@ -38,6 +42,15 @@ public class CameraController : MonoBehaviour {
         {SceneNames.LEVEL_2, 20f },
         {SceneNames.LEVEL_3, 20f },
         {SceneNames.CUSTOM_NM, 25f },
+        {SceneNames.CUSTOM_AJ, 40f },
+    };
+
+    Dictionary<string, float> START_PAN_DURATION = new Dictionary<string, float>() {
+        {SceneNames.LEVEL_1, 0.75f },
+        {SceneNames.LEVEL_2, 0.75f },
+        {SceneNames.LEVEL_3, 0.75f },
+        {SceneNames.CUSTOM_NM, 0.75f },
+        {SceneNames.CUSTOM_AJ, 1.5f },
     };
 
     Vector3 START_LEVEL_POS_OFFSET = new Vector3(0f, 1f, -2.75f);
@@ -88,7 +101,6 @@ public class CameraController : MonoBehaviour {
     string current_level;
 
     public float in_level_trans_time = 0.25f;
-    public float start_trans_time = 0.75f;
 
 	void Start () {
         cam_control = this;
@@ -166,7 +178,7 @@ public class CameraController : MonoBehaviour {
     float getTransitionTime() {
         if (camera_state == CameraState.START_PAN_OVERVIEW ||
                 camera_state == CameraState.START_PAN_PLAYER) {
-            return start_trans_time;
+            return START_PAN_DURATION[current_level];
         }
         else {
             return in_level_trans_time;
