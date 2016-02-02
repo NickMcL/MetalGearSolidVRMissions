@@ -15,7 +15,6 @@ public class MovementController : MonoBehaviour {
     float poscount = 0;
     bool knock_lock = false;
     bool flip_lock = false;
-    bool holding_guard = false;
     public LayerMask enemy_layer;
     GameObject victim;
     // Player collider values
@@ -28,7 +27,8 @@ public class MovementController : MonoBehaviour {
 
     public static MovementController player;  // Singleton
     Rigidbody body;
-
+    float choke_count = 0;
+    float choke_timer = 0;
     public float run_speed = 10f;
     public float crawl_speed = 2f;
     public float grabbing_speed = 7f;
@@ -86,8 +86,8 @@ public class MovementController : MonoBehaviour {
         unspawning_player = false;
     }
 
-	// Update is called once per frame
-	void Update () {
+    // Update is called once per frame
+    void Update() {
         if (spawning_player) {
             growSpawnSphere();
         }
@@ -99,27 +99,61 @@ public class MovementController : MonoBehaviour {
             return;
         }
 
+        if (move_state == movementState.GRABBING) {
+            resolveGrab();
+        }
+        if (knock_lock || flip_lock) {
+            return;
+        }
+
         if (!lockControlsIfNeeded()) {
             if (under_obstacle_last_frame) {
                 updateUnderObstacleTransformFromInput();
-            } else {
+            }
+            else {
                 setVelocityFromInput();
                 updateWallMovement();
                 updateForwardDirection();
             }
         }
+
         keepPlayerWithinPositionLimits();
 
         if (Input.GetKey(KNOCK_KEY)) {
-            if (!knock_lock && movementState.AGAINST_WALL == move_state) {
-                knock_lock = true;
-                Invoke("unlockKnock", 1f); //prevents knock spam
-                Knock();
+            if (!knock_lock) {
+                body.velocity = Vector3.zero;
+                if (movementState.AGAINST_WALL == move_state) {
+                    knock_lock = true;
+
+                    Knock();
+                }
+                else
+                    punchCheck();
+                Invoke("unlockKnock", 0.3f); //prevents knock spam
             }
         }
 
         if (Input.GetKey(GRAB_KEY)) {
-            resolveGrab();
+            if (choke_timer <= 0) {
+                resolveGrab();
+                if (move_state == movementState.GRABBING) {
+                    choke_count++;
+                    AudioController.audioPlayer.chokeSound();
+                    body.velocity = Vector3.zero;
+                    knock_lock = true;
+                    victim.GetComponent<Rigidbody>().AddForceAtPosition(victim.transform.forward * -87, victim.transform.position + victim.transform.up);
+                    Invoke("unlockKnock", 0.1f);
+                }
+                choke_timer = 0.1f;
+            }
+            else
+                choke_timer -= Time.deltaTime;
+            if (choke_count > 10) {
+                victim.GetComponent<Enemy>().die();
+                choke_count = 0;
+                move_state = movementState.RUN;
+            }
+
         }
 
         if (Input.GetKeyDown(CRAWL_KEY)) {
@@ -129,10 +163,36 @@ public class MovementController : MonoBehaviour {
         adjustCamera();
         adjustPlayerCollider();
         velocity_last_frame = body.velocity;
-	}
+        if (body.velocity.magnitude > 0) {
+            if (move_state == movementState.RUN) {
+                AudioController.audioPlayer.stepSound();
+            }
+        }
+    }
+
+    void punchCheck() {
+        if (move_state == movementState.RUN) {
+            RaycastHit hit_info;
+            Ray facing = new Ray(transform.position - transform.forward, transform.forward);
+            Debug.DrawRay(transform.position - transform.forward * 2, transform.forward, Color.blue, 2f);
+            Debug.DrawRay(transform.position, transform.right, Color.green, 4f);
+            knock_lock = true;
+            if (Physics.SphereCast(facing, 1.1f, out hit_info, 2f, enemy_layer)) {
+                victim = hit_info.rigidbody.gameObject;
+                if (victim.GetComponent<Enemy>().current_state != EnemyState.KO &&
+                        victim.GetComponent<Enemy>().current_state != EnemyState.BEING_FLIPPED) {
+                            AudioController.audioPlayer.punchSound();
+                    victim.GetComponent<Enemy>().getPunched();
+                    Vector3 fist = (victim.transform.position - transform.position) * 50f;
+                    victim.GetComponent<Rigidbody>().AddForceAtPosition(fist, victim.transform.position + victim.transform.up);
+                }
+            }
+        }
+    }
 
     void resolveGrab() {
         if (move_state == movementState.RUN) {
+            body.velocity = Vector3.zero;
             RaycastHit hit_info;
             Ray facing = new Ray(transform.position - transform.forward, transform.forward);
             Debug.DrawRay(transform.position - transform.forward * 2, transform.forward, Color.blue, 2f);
@@ -141,7 +201,7 @@ public class MovementController : MonoBehaviour {
             if (Physics.SphereCast(facing, 1.1f, out hit_info, 2f, enemy_layer)) {
                 victim = hit_info.rigidbody.gameObject;
                 if (victim.GetComponent<Enemy>().current_state != EnemyState.KO &&
-                        victim.GetComponent<Enemy>().current_state != EnemyState.BEING_FLIPPED) {
+                        victim.GetComponent<Enemy>().current_state != EnemyState.BEING_FLIPPED && victim.GetComponent<Enemy>().current_state != EnemyState.DEAD) {
                     if (moveInput() && !body.isKinematic && !flip_lock)
                         throwEnemy();
                     else {
@@ -160,6 +220,7 @@ public class MovementController : MonoBehaviour {
     void throwEnemy() {
         flip_lock = true;
         body.isKinematic = true;
+        GetComponent<BoxCollider>().enabled = false;
         GetComponent<Rigidbody>().GetComponent<Rigidbody>().isKinematic = true;
         // Invoke("unlockFlip", 0.5f);
         victim.GetComponent<Enemy>().getFlipped();
@@ -252,12 +313,10 @@ public class MovementController : MonoBehaviour {
             hit_corner = false;
             if (move_state == movementState.ALONG_WALL) {
                 updateAlongWall();
-            }
-            else if (move_state == movementState.AGAINST_WALL) {
+            } else if (move_state == movementState.AGAINST_WALL) {
                 updateAgainstWall();
             }
-        }
-        else if (move_state != movementState.CRAWL && move_state != movementState.GRABBING) {
+        } else if (move_state != movementState.CRAWL && move_state != movementState.GRABBING) {
             move_state = movementState.RUN;
             locked_direction = Vector3.zero;
         }
@@ -295,8 +354,7 @@ public class MovementController : MonoBehaviour {
             }
             zeroMovementInLockedDirection();
 
-        }
-        else if (movingOppositeOfLockedDirection()) {
+        } else if (movingOppositeOfLockedDirection()) {
             locked_direction = Vector3.zero;
             move_state = movementState.RUN;
         }
@@ -326,8 +384,7 @@ public class MovementController : MonoBehaviour {
             this.transform.position += this.transform.forward * 0.5f;
             locked_direction = Vector3.zero;
             move_state = movementState.RUN;
-        }
-        else {
+        } else {
             zeroMovementInLockedDirection();
         }
     }
@@ -337,7 +394,7 @@ public class MovementController : MonoBehaviour {
             return;
         }
 
-        if (move_state == movementState.GRABBING) {
+        if (move_state == movementState.GRABBING && body.velocity.magnitude > 0) {
             body.transform.forward = body.velocity.normalized * -1f;
         } else if (body.velocity != Vector3.zero) {
             gameObject.transform.forward = body.velocity.normalized;
@@ -362,6 +419,7 @@ public class MovementController : MonoBehaviour {
         GameObject[] all_Enemy = GameObject.FindGameObjectsWithTag("Enemy");
         float range = 20f;
         GameObject[] all_point = GameObject.FindGameObjectsWithTag("Waypoint");
+        AudioController.audioPlayer.knockSound();
         foreach (GameObject point in all_point) {
             if (point.transform.position == transform.position)
                 return;
@@ -402,7 +460,8 @@ public class MovementController : MonoBehaviour {
             body.transform.position = new Vector3(body.transform.position.x, 1f, body.transform.position.z);
             body.transform.Rotate(new Vector3(-90f, 0f, 0f));
             move_state = movementState.RUN;
-        }
+        } else
+            AudioController.audioPlayer.cantSound();
     }
 
     void adjustCamera() {
@@ -535,8 +594,7 @@ public class MovementController : MonoBehaviour {
         if (under_obstacle_last_frame) {
             player_collider.center = PLAYER_UNDER_OBSTACLE_COLLIDER_CENTER;
             player_collider.size = PLAYER_UNDER_OBSTACLE_COLLIDER_SIZE;
-        }
-        else {
+        } else {
             player_collider.center = PLAYER_CRAWLING_COLLIDER_CENTER;
             player_collider.size = PLAYER_CRAWLING_COLLIDER_SIZE;
         }
@@ -564,8 +622,7 @@ public class MovementController : MonoBehaviour {
 
             if (movingDiagonal()) {
                 move_state = movementState.ALONG_WALL;
-            }
-            else {
+            } else {
                 move_state = movementState.AGAINST_WALL;
                 body.transform.rotation = Quaternion.LookRotation(coll.contacts[0].normal);
             }
@@ -588,8 +645,7 @@ public class MovementController : MonoBehaviour {
         Vector3 vel = body.velocity;
         if (locked_direction.x != 0) {
             vel.x = 0;
-        }
-        else if (locked_direction.z != 0) {
+        } else if (locked_direction.z != 0) {
             vel.z = 0;
         }
         body.velocity = vel;
