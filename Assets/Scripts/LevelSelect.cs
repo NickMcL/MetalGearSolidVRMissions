@@ -64,18 +64,21 @@ public class LevelSelect : MonoBehaviour {
     // Update is called once per frame
     void Update() {
         if (Input.GetKeyDown(START_KEY) || Input.GetKeyDown(CONFIRM_KEY)) {
-            SceneManager.LoadScene(LEVEL_SCENE_NAMES[selected_level]);
+            AudioController.audioPlayer.gunshot();
+            Invoke("getScene", 2f);
         }
 
         level_texts[selected_level].color = unselected_color;
         if (Input.GetKeyDown(UP_KEY)) {
             --selected_level;
+            AudioController.audioPlayer.menuSound();
             if (selected_level == -1) {
                 selected_level = level_texts.Length - 1;
             }
             SelectorBox.box.moveSelectorBox(getSelectedLevelPosition());
         } else if (Input.GetKeyDown(DOWN_KEY)) {
             ++selected_level;
+            AudioController.audioPlayer.menuSound();
             if (selected_level == level_texts.Length) {
                 selected_level = 0;
             }
@@ -83,7 +86,9 @@ public class LevelSelect : MonoBehaviour {
         }
         level_texts[selected_level].color = selected_color;
     }
-
+    void getScene() {
+        SceneManager.LoadScene(LEVEL_SCENE_NAMES[selected_level]);
+    }
     Vector3 getSelectedLevelPosition() {
         float level_offset = header_offset - level_list_offset_from_header -
             (between_level_offset * selected_level);
