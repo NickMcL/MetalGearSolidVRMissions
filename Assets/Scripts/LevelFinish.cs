@@ -6,7 +6,7 @@ using System.Collections.Generic;
 public class LevelFinish : MonoBehaviour {
     Dictionary<string, string> LEVEL_SCENE_NAME_MAP = new Dictionary<string, string>() {
         { "_Level_1", "Level 1"},
-        { "_Level_2_AJ", "Level 2"},
+        { "_Level_2F", "Level 2"},
         { "_Level_3", "Level 3"},
         { "_Level_Custom_NM", "Custom  Level 1" },
         { "_Level_Custom_AJ", "Custom  Level 2" },

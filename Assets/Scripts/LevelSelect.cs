@@ -5,7 +5,7 @@ using System.Collections;
 public class LevelSelect : MonoBehaviour {
     string[] LEVEL_SCENE_NAMES = {
         "_Level_1",
-        "_Level_2_AJ",
+        "_Level_2F",
         "_Level_3",
         "_Level_Custom_NM",
         "_Level_Custom_AJ",

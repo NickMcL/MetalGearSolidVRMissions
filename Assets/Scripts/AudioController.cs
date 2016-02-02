@@ -18,6 +18,7 @@ public class AudioController : MonoBehaviour {
     public AudioClip what;
     public AudioClip hit_ground;
     public AudioClip aah;
+    public AudioClip spawn;
     float punch_delay = 0;
     float step_delay = 0;
     float cant_delay = 0;
@@ -37,11 +38,20 @@ public class AudioController : MonoBehaviour {
         if (cant_delay > 0)
             cant_delay -= Time.deltaTime;
 	}
+    public void crouchSound() {
+        audio.PlayOneShot(crouch);
+    }
     public void stepSound() {
         if (step_delay > 0)
             return;
         step_delay = 0.4f;
         audio.PlayOneShot(step,volume);
+    }
+    public void crawlSound() {
+        if (step_delay > 0)
+            return;
+        step_delay = 0.5f;
+        audio.PlayOneShot(crawl, volume);
     }
    public void punchSound() {
         if (punch_delay > 0)
@@ -86,7 +96,10 @@ public class AudioController : MonoBehaviour {
    public void aahSound() {
        audio.PlayOneShot(aah,volume);
    }
+   public void spawnSound() {
+       audio.PlayOneShot(spawn,volume);
+   }
    void gameOver() {
-        audio.PlayOneShot(GG);
+        audio.PlayOneShot(GG,volume);
    }
 }

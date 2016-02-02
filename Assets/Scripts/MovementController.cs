@@ -167,6 +167,8 @@ public class MovementController : MonoBehaviour {
         if (body.velocity.magnitude > 0) {
             if (move_state == movementState.RUN) {
                 AudioController.audioPlayer.stepSound();
+            } else if (move_state == movementState.CRAWL) {
+                AudioController.audioPlayer.crawlSound();
             }
         }
     }
@@ -450,6 +452,7 @@ public class MovementController : MonoBehaviour {
 
     void toggleCrawl() {
         if (move_state != movementState.CRAWL) {
+            AudioController.audioPlayer.crouchSound();
             body.transform.position = new Vector3(body.transform.position.x, .25f, body.transform.position.z);
             if (move_state == movementState.AGAINST_WALL) {
                 // Move off of the wall before lying down to crawl
@@ -458,6 +461,7 @@ public class MovementController : MonoBehaviour {
             body.transform.Rotate(new Vector3(90f, 0f, 0f));
             move_state = movementState.CRAWL;
         } else if (!playerIsUnderObstacle()) {
+            AudioController.audioPlayer.crouchSound();
             body.transform.position = new Vector3(body.transform.position.x, 1f, body.transform.position.z);
             body.transform.Rotate(new Vector3(-90f, 0f, 0f));
             move_state = movementState.RUN;
