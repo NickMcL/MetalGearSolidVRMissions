@@ -5,11 +5,11 @@ using System.Collections.Generic;
 
 public class LevelFinish : MonoBehaviour {
     Dictionary<string, string> LEVEL_SCENE_NAME_MAP = new Dictionary<string, string>() {
-        { "_Level_1", "Level 1"},
-        { "_Level_2_AJ", "Level 2"},
-        { "_Level_3", "Level 3"},
-        { "_Level_Custom_NM", "Custom  Level 1" },
-        { "_Level_Custom_AJ", "Custom  Level 2" },
+        { SceneNames.LEVEL_1, "Level 1"},
+        { SceneNames.LEVEL_2, "Level 2"},
+        { SceneNames.LEVEL_3, "Level 3"},
+        { SceneNames.CUSTOM_NM, "Custom  Level 1" },
+        { SceneNames.CUSTOM_AJ, "Custom  Level 2" },
     };
 
     const KeyCode UP_KEY = KeyCode.UpArrow;
@@ -30,8 +30,7 @@ public class LevelFinish : MonoBehaviour {
 
     public static bool last_level = false;
     public static string next_level_scene_name;
-    public static string current_level_scene_name = "_Level_1";
-    public string start_menu_scene_name;
+    public static string current_level_scene_name = SceneNames.LEVEL_1;
 
     public Color selected_color;
     public Color unselected_color;
@@ -78,7 +77,7 @@ public class LevelFinish : MonoBehaviour {
                 if (selected_option == 0) {
                     SceneManager.LoadScene(current_level_scene_name);
                 } else if (selected_option == 1) {
-                    SceneManager.LoadScene(start_menu_scene_name);
+                    SceneManager.LoadScene(SceneNames.START_MENU);
                 }
             } else {
                 if (selected_option == 0) {
@@ -86,7 +85,7 @@ public class LevelFinish : MonoBehaviour {
                 } else if (selected_option == 1) {
                     SceneManager.LoadScene(current_level_scene_name);
                 } else if (selected_option == 2) {
-                    SceneManager.LoadScene(start_menu_scene_name);
+                    SceneManager.LoadScene(SceneNames.START_MENU);
                 }
             }
         }

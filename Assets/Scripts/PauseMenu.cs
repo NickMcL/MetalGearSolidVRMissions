@@ -26,9 +26,6 @@ public class PauseMenu : MonoBehaviour {
     GUIText header_text;
     GUIText[] menu_options;
 
-    public string current_scene_name;
-    public string start_menu_scene_name;
-
     public float header_offset;
     public float level_list_offset_from_header;
     public float between_level_offset;
@@ -101,9 +98,9 @@ public class PauseMenu : MonoBehaviour {
             game_paused = false;
             CameraController.cam_control.unpause();
         } else if (action == PauseOption.RESTART) {
-            SceneManager.LoadScene(current_scene_name);
+            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
         } else if (action == PauseOption.EXIT) {
-            SceneManager.LoadScene(start_menu_scene_name);
+            SceneManager.LoadScene(SceneNames.START_MENU);
         }
     }
 

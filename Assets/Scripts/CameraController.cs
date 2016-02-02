@@ -6,38 +6,38 @@ using System.Collections.Generic;
 
 public class CameraController : MonoBehaviour {
     Dictionary<string, string> NEXT_LEVEL = new Dictionary<string, string>() {
-        {"_Level_1", "_Level_2_NM" },
-        {"_Level_2_NM", "_Level_3" },
-        {"_Level_3", "_Level_Custom_NM" },
-        {"_Level_Custom_NM", null },
+        {SceneNames.LEVEL_1, SceneNames.LEVEL_2 },
+        {SceneNames.LEVEL_2, SceneNames.LEVEL_3 },
+        {SceneNames.LEVEL_3, SceneNames.CUSTOM_NM },
+        {SceneNames.CUSTOM_NM, null },
     };
 
     Dictionary<string, Vector3> LEVEL_END_POINT_POSITIONS = new Dictionary<string, Vector3>() {
-        {"_Level_1", new Vector3(7.5f, 2f, 11f) },
-        {"_Level_2_NM", new Vector3(10f, 2f, 10f) },
-        {"_Level_3", new Vector3(10f, 2f, 9f) },
-        {"_Level_Custom_NM", new Vector3(11.5f, 2f, -21f) },
+        {SceneNames.LEVEL_1, new Vector3(7.5f, 2f, 11f) },
+        {SceneNames.LEVEL_2, new Vector3(10f, 2f, 10f) },
+        {SceneNames.LEVEL_3, new Vector3(10f, 2f, 9f) },
+        {SceneNames.CUSTOM_NM, new Vector3(11.5f, 2f, -21f) },
     };
 
     Dictionary<string, Vector3> LEVEL_END_CAMERA_SCALE = new Dictionary<string, Vector3>() {
-        {"_Level_1", new Vector3(1f, 0f, 1f) },
-        {"_Level_2_NM", new Vector3(1f, 0f, 1f) },
-        {"_Level_3", new Vector3(1f, 0f, 1f) },
-        {"_Level_Custom_NM", new Vector3(1f, 0f, -1f) },
+        {SceneNames.LEVEL_1, new Vector3(1f, 0f, 1f) },
+        {SceneNames.LEVEL_2, new Vector3(1f, 0f, 1f) },
+        {SceneNames.LEVEL_3, new Vector3(1f, 0f, 1f) },
+        {SceneNames.CUSTOM_NM, new Vector3(1f, 0f, -1f) },
     };
 
     Dictionary<string, Vector3> PLAYER_SPAWN_POSITIONS = new Dictionary<string, Vector3>() {
-        {"_Level_1", new Vector3(-1.5f, 1f, -3.5f) },
-        {"_Level_2_NM", new Vector3(-10f, 1f, -10f) },
-        {"_Level_3", new Vector3(-4f, 1f, -9f) },
-        {"_Level_Custom_NM", new Vector3(-22.5f, 1f, -23f) },
+        {SceneNames.LEVEL_1, new Vector3(-1.5f, 1f, -3.5f) },
+        {SceneNames.LEVEL_2, new Vector3(-10f, 1f, -10f) },
+        {SceneNames.LEVEL_3, new Vector3(-4f, 1f, -9f) },
+        {SceneNames.CUSTOM_NM, new Vector3(-22.5f, 1f, -23f) },
     };
 
     Dictionary<string, float> START_PAN_HEIGHT = new Dictionary<string, float>() {
-        {"_Level_1", 15f },
-        {"_Level_2_NM", 20f },
-        {"_Level_3", 20f },
-        {"_Level_Custom_NM", 25f },
+        {SceneNames.LEVEL_1, 15f },
+        {SceneNames.LEVEL_2, 20f },
+        {SceneNames.LEVEL_3, 20f },
+        {SceneNames.CUSTOM_NM, 25f },
     };
 
     Vector3 START_LEVEL_POS_OFFSET = new Vector3(0f, 1f, -2.75f);
@@ -55,8 +55,6 @@ public class CameraController : MonoBehaviour {
     const float CAMERA_START_FOV = 46f;
     const float PAUSE_LIGHT_INTENSITY = 0.1f;
     const float UNPAUSE_LIGHT_INTENSITY = 1.0f;
-
-    public string level_finish_scene_name = "_Level_Finish";
 
     const KeyCode START_KEY = KeyCode.Return;
 
@@ -367,7 +365,7 @@ public class CameraController : MonoBehaviour {
     }
 
     public void startNextLevel() {
-        SceneManager.LoadScene(level_finish_scene_name);
+        SceneManager.LoadScene(SceneNames.LEVEL_FINISH);
     }
 
     public void pause() {
