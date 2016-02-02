@@ -5,6 +5,19 @@ using System.Collections.Generic;
 
 
 public class CameraController : MonoBehaviour {
+    Dictionary<string, string> START_LEVEL_TEXT = new Dictionary<string, string>() {
+        {SceneNames.LEVEL_1, "SNEAKING  MODE\nNO  WEAPON  LEVEL  1\n\nDon't  be  seen  by  enemy  soldiers  and  head  for  the  goal!   " +
+            "This  training  mission  is  aborted  if  you  are  spotted." },
+        {SceneNames.LEVEL_2, "SNEAKING  MODE\nNO  WEAPON  LEVEL  2\n\nUse  the  Radar  effectively  and  head  " +
+            "for  the  goal!   There  is  a  blind  spot  behind  the  enemy." },
+        {SceneNames.LEVEL_3, "SNEAKING  MODE\nNO  WEAPON  LEVEL  3\n\nUse  shortcuts  wisely  and  head  for  " +
+            "the  goal!   Infiltrate  by  crawling  through  low  ceiling  areas." },
+        {SceneNames.CUSTOM_NM, "SNEAKING  MODE\nNO  WEAPON  CUSTOM  LEVEL  1\n\nNavigate  around  the  guards  careful  " +
+            "and  head  for  the  goal!   Try   to  lure  guards  away  from  tight  areas." },
+        {SceneNames.CUSTOM_AJ, "SNEAKING  MODE\nNO  WEAPON  CUSTOM  LEVEL  2\n\nUse  all  of  the  skills  at  your  " +
+            "disposal  and  head  for  the  goal!   Remember  that  you  can  flip,  punch,  or  grab  troublesome  guards."},
+    };
+
     Dictionary<string, string> NEXT_LEVEL = new Dictionary<string, string>() {
         {SceneNames.LEVEL_1, SceneNames.LEVEL_2 },
         {SceneNames.LEVEL_2, SceneNames.LEVEL_3 },
@@ -73,6 +86,7 @@ public class CameraController : MonoBehaviour {
 
     public static CameraController cam_control;  // Singleton
     public Camera main_camera;
+    public GUISkin start_level_gui_skin;
     public float end_level_delay = 2.0f;
     public bool game_paused;
 
@@ -99,6 +113,7 @@ public class CameraController : MonoBehaviour {
     float lerp_start_time;
     public float end_level_start_time;
     string current_level;
+    string current_start_level_text;
 
     public float in_level_trans_time = 0.25f;
 
@@ -111,6 +126,7 @@ public class CameraController : MonoBehaviour {
         moved_under_obstacle = false;
         spawning_player = false;
         game_paused = false;
+        current_start_level_text = "";
         current_level = SceneManager.GetActiveScene().name;
 
         MissionFailed.current_level_scene_name = current_level;
@@ -391,5 +407,26 @@ public class CameraController : MonoBehaviour {
         GameObject.FindGameObjectWithTag("Light").GetComponent<Light>().intensity = UNPAUSE_LIGHT_INTENSITY;
         main_camera.cullingMask &= ~(1 << LayerMask.NameToLayer("PauseMenu"));
         game_paused = false;
+    }
+
+    void OnGUI() {
+        if (camera_state == CameraState.START_LEVEL) {
+            Color c = Color.white;
+            c.a = 1;
+            GUI.color = c;
+            GUI.skin = start_level_gui_skin;
+            GUI.skin.box.fontSize = Mathf.RoundToInt(Screen.width * 0.04f);
+            GUI.skin.box.padding = new RectOffset(GUI.skin.box.fontSize, GUI.skin.box.fontSize,
+                    Mathf.RoundToInt(GUI.skin.box.fontSize * 0.75f), Mathf.RoundToInt(GUI.skin.box.fontSize * 0.75f));
+            GUI.Box(new Rect(Screen.width * 0.125f, Screen.height * 0.25f, Screen.width * 0.75f, Screen.height * 0.5f), getStartLevelText());
+            GUI.color = Color.white;
+        }
+    }
+
+    string getStartLevelText() {
+        if (current_start_level_text.Length != START_LEVEL_TEXT[current_level].Length) {
+            current_start_level_text += START_LEVEL_TEXT[current_level][current_start_level_text.Length];
+        }
+        return current_start_level_text;
     }
 }
