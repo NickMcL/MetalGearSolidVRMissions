@@ -43,6 +43,10 @@ public class PatrolPoint : MonoBehaviour {
             if (Physics.Raycast(this_point, to_point, out Hit, range, waypoints_and_walls))
                 if (Hit.collider.gameObject == point) {
                     Neighbor current_neighbor = new Neighbor(point, Hit.distance);
+
+                    if (Physics.Raycast(transform.position + transform.up, to_point, out Hit, to_point.magnitude, waypoints_and_walls))
+                        continue;
+                    
                     neighbors.Add(current_neighbor);
 
                 }

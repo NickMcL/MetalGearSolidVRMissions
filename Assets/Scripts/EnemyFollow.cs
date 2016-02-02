@@ -14,5 +14,9 @@ public class EnemyFollow : MonoBehaviour {
         if (enemy != null) {
             gameObject.transform.position = enemy.transform.position;
         }
+        if (enemy.GetComponent<Enemy>().dead) {
+            Destroy(this.gameObject);
+        }
+        gameObject.transform.position = enemy.transform.position;
     }
 }

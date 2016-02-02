@@ -12,7 +12,8 @@ public enum EnemyState {
     KO,
     GETTINGUP,
     SEARCHING,
-    PATROL_RETURN
+    PATROL_RETURN,
+    DEAD
 };
 
 public class Enemy : MonoBehaviour {
@@ -22,30 +23,40 @@ public class Enemy : MonoBehaviour {
     public float detect_angle = 30f;
     public List<GameObject> search_path;
     List<GameObject> possible_path;
+    int look_index = 0;
+    public List<GameObject> look_points;
     public Color default_color;
     public Color surprised_color = Color.yellow;
+    public Material gold;
+    public Material white;
     public GameObject waypoint_prefab;
     public GameObject current_patrol_point;
-    GameObject original_patrol_point;
+    public GameObject original_patrol_point;
     public GameObject investigate_point;
     GameObject temp_waypoint;
     public LayerMask player_and_walls;
-
+    public bool wait_at_points = true;
+    public bool waiting = false;
+    public bool looker = false;
+    public float wait_time = 0;
     bool ____________________;  // Divider for the inspector
-
+    public bool dead = false;
     public EnemyState current_state;
     EnemyState former_state;
-    float misc_counter = 0;
+    float stop_watch = 0;
     float search_stage = 0;
     float misc_counter2 = 0;
     float ko_count = 1;
     float ko_min = 1;
+    public float punch_count = 0;
+    public float stun_timer = 0;
+    float punch_stun = 0.8f;
     Rigidbody body;
     NavMeshAgent mesh_agent;
-    bool change_course = false;
     bool looking = false;
-    Quaternion look_target;
-
+    public bool looking_right_way = true;
+    public Quaternion look_target;
+    bool touched_player = false;
     public Material detect_material;
     public Material alert_material;
     public int detect_area_total_vertices = 12;
@@ -75,6 +86,8 @@ public class Enemy : MonoBehaviour {
                 break;
             }
         }
+        if (looker)
+            original_patrol_point = current_patrol_point;
     }
 
     // Update is called once per frame
@@ -85,23 +98,55 @@ public class Enemy : MonoBehaviour {
             return;
         }
         mesh_agent.Resume();
-        drawDetectArea();
+        if (current_state == EnemyState.DEAD) {
+            die();
+            return;
+        }
 
+        drawDetectArea();
+        if (touched_player) {
+            look_target.SetLookRotation(player.transform.position - transform.position);
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, look_target, Time.deltaTime * 500);
+            //return;
+        }
+
+
+        if (punch_count > 0) {
+            body.AddForceAtPosition(Vector3.up * 400 * Time.deltaTime, transform.position + transform.up);
+            if (punch_count > 2) {
+                fallDown();
+                punch_count = 0;
+                stun_timer = 0;
+                return;
+            }
+            stun_timer -= Time.deltaTime;
+            if (stun_timer < 0) {
+                punch_count = 0;
+                stun_timer = 0;
+                current_state = EnemyState.KO;
+                getUp();
+
+            }
+            return;
+        }
         if (current_state == EnemyState.BEING_FLIPPED) {
             flyProgress();
             return;
         } else if (current_state == EnemyState.KO) {
-            misc_counter += Time.deltaTime;
-            if (misc_counter > 0.35) {
+            stop_watch += Time.deltaTime;
+            if (stop_watch > 0.35) {
                 Vector3 down = new Vector3(0, -100, 0);
                 body.AddForceAtPosition(down, transform.position);
             }
 
-            if (misc_counter > 0.1) {
+            if (stop_watch > 0.1) {
                 player.GetComponent<MovementController>().unlockFlip();
             }
+            if (stop_watch > 0.9) {
+                player.GetComponent<BoxCollider>().enabled = true;
+            }
 
-            if (misc_counter > ko_count) {
+            if (stop_watch > ko_count) {
                 getUp();
             }
             return;
@@ -112,16 +157,26 @@ public class Enemy : MonoBehaviour {
         }
 
         if (ko_count > ko_min) {
-            if (misc_counter > 2) {
-                misc_counter = 0;
+            if (stop_watch > 2) {
+                stop_watch = 0;
                 ko_count = ko_min;
             }
-            misc_counter += Time.deltaTime;
+            stop_watch += Time.deltaTime;
         } else if (ko_count < ko_min) {
             ko_count = ko_min;
         }
 
         if (current_state == EnemyState.PATROL) {
+            if (waiting && wait_at_points) {
+                if (wait_time > 2) {
+                    waiting = false;
+                    resumePatrol();
+                }
+                if (looking_right_way)
+                    wait_time += Time.deltaTime;
+                else
+                    lookAround();
+            }
             patrolUpdate();
         } else if (current_state == EnemyState.SEE_PLAYER) {
             seePlayerUpdate();
@@ -169,22 +224,37 @@ public class Enemy : MonoBehaviour {
 
     void saveStatus() {
         former_state = current_state;
-        if (search_path.Count == 0) {
+        if (search_path.Count == 0 && !looker) {
             original_patrol_point = current_patrol_point;
         }
     }
 
+    public void getPunched() {
+        if (punch_count == 0) {
+            stun_timer = punch_stun;
+            body.freezeRotation = false;
+            mesh_agent.updateRotation = false;
+            mesh_agent.updatePosition = false;
+            mesh_agent.Stop();
+        } else
+            stun_timer += punch_stun;
+        punch_count++;
+        return;
+    }
+
     public void getFlipped() {
+        saveStatus();
+        current_state = EnemyState.BEING_FLIPPED;
         mesh_agent.updateRotation = false;
         mesh_agent.updatePosition = false;
+        mesh_agent.Stop();
         body.isKinematic = true;
         body.freezeRotation = false;
         mesh_agent.destination = this.transform.position;
         //       player.GetComponent<Rigidbody>().isKinematic = true;
-        saveStatus();
-        current_state = EnemyState.BEING_FLIPPED;
+        
         /// body.isKinematic=true;
-        misc_counter = 0;
+        stop_watch = 0;
         //transform.rotation = player.transform.rotation;
         //transform.position = player.transform.position + player.transform.forward;
     }
@@ -192,28 +262,44 @@ public class Enemy : MonoBehaviour {
     public void getGrabbed() {
         mesh_agent.updateRotation = false;
         mesh_agent.updatePosition = false;
+        mesh_agent.Stop();
         body.freezeRotation = false;
+        AudioController.audioPlayer.grabSound();
         //  body.isKinematic = true;
         saveStatus();
         current_state = EnemyState.GRABBED;
-        misc_counter = 0;
+        stop_watch = 0;
+    }
+
+    void fallDown() {
+        mesh_agent.updateRotation = false;
+        mesh_agent.updatePosition = false;
+        mesh_agent.Stop();
+        body.freezeRotation = false;
+        getKOd();
+
     }
 
     void getKOd() {
         current_state = EnemyState.KO;
-        misc_counter = 0;
+        stop_watch = 0;
         misc_counter2 = 0;
+        looking = false;
         if (ko_count == ko_min) {
             ko_count += 3;
         }
     }
 
     void getUp() {
+        if (dead == true) {
+            Destroy(this.gameObject);
+            return;
+        }
         if (current_state == EnemyState.KO) {
             current_state = EnemyState.GETTINGUP;
-            misc_counter = 0;
+            stop_watch = 0;
         }
-        misc_counter += Time.deltaTime;
+        stop_watch += Time.deltaTime;
 
         if (mesh_agent.updateRotation == false) {
             if (Vector3.Magnitude(transform.up - Vector3.up) < 0.5f) {
@@ -221,12 +307,13 @@ public class Enemy : MonoBehaviour {
                 mesh_agent.Warp(transform.position);
                 body.velocity = fullstop;
                 mesh_agent.updateRotation = true;
+                mesh_agent.Resume();
             }
             body.AddForceAtPosition(Vector3.up * 800 * Time.deltaTime, transform.position + transform.up);
         } else if (Mathf.Abs(body.velocity.magnitude) < 0.01f) {
             mesh_agent.updatePosition = true;
             body.freezeRotation = true;
-            misc_counter = 0;
+            stop_watch = 0;
             misc_counter2 = 0;
             current_state = EnemyState.SEARCHING;
         }
@@ -264,15 +351,16 @@ public class Enemy : MonoBehaviour {
             body.AddForceAtPosition(force_infront * exp_force * 120f, neck);
         }
 
-        if (misc_counter > 4) {
+        if (stop_watch > 4) {
             getKOd();
             released();
         }
-        misc_counter += Time.deltaTime;
+        stop_watch += Time.deltaTime;
         misc_counter2 += Time.deltaTime;
     }
 
     void searching() {
+
         if (!looking) {
             looking = true;
             search_stage = 0;
@@ -280,6 +368,7 @@ public class Enemy : MonoBehaviour {
             search_stage = 0;
             mesh_agent.updateRotation = false;
             mesh_agent.updatePosition = false;
+            mesh_agent.Stop();
             body.freezeRotation = false;
         }
 
@@ -288,11 +377,11 @@ public class Enemy : MonoBehaviour {
             misc_counter2 = 0;
         }
         if (search_stage == 0) {
-            look_target.SetLookRotation(transform.forward * -1 + transform.right,transform.up);
+            look_target.SetLookRotation(transform.forward * -1 + transform.right, transform.up);
             search_stage++;
         }
         if (search_stage == 2) {
-            look_target.SetLookRotation(transform.right *-1, transform.up);
+            look_target.SetLookRotation(transform.right * -1, transform.up);
             search_stage++;
         }
         if (search_stage == 4) {
@@ -306,17 +395,18 @@ public class Enemy : MonoBehaviour {
         if (Quaternion.Angle(transform.rotation, look_target) < 5) {
             misc_counter2 += Time.deltaTime;
         } else {
-            transform.rotation = Quaternion.RotateTowards(transform.rotation, look_target, Time.deltaTime * 160);
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, look_target, Time.deltaTime * 200);
         }
         if (search_stage > 7) {
             search_stage = 0;
             misc_counter2 = 0;
             looking = false;
-            
-           // transform.rotation =  Quaternion.FromToRotation(transform.up, Vector3.up);
-           // transform.rotation = Quaternion.AngleAxis(0, Vector3.forward);
-           // transform.rotation = Quaternion.AngleAxis(0, Vector3.right);
+
+            // transform.rotation =  Quaternion.FromToRotation(transform.up, Vector3.up);
+            // transform.rotation = Quaternion.AngleAxis(0, Vector3.forward);
+            // transform.rotation = Quaternion.AngleAxis(0, Vector3.right);
             mesh_agent.Warp(transform.position);
+            mesh_agent.Resume();
             mesh_agent.destination = transform.position;
             mesh_agent.updateRotation = true;
             mesh_agent.updatePosition = true;
@@ -325,8 +415,18 @@ public class Enemy : MonoBehaviour {
         }
     }
 
+    void regainMoveControl() {
+        mesh_agent.Warp(transform.position);
+        mesh_agent.Resume();
+        //  mesh_agent.destination = transform.position;
+        mesh_agent.updateRotation = true;
+        mesh_agent.updatePosition = true;
+        body.freezeRotation = true;
+        looking = false;
+    }
+
     void released() {
-        misc_counter = 0;
+        stop_watch = 0;
         misc_counter2 = 0;
         if (current_state == EnemyState.KO) {
             return;
@@ -334,7 +434,7 @@ public class Enemy : MonoBehaviour {
     }
 
     void flyProgress() {
-        if (misc_counter < 0.1f) {
+        if (stop_watch < 0.1f) {
             Vector3 posy = transform.position;
             posy.y += 12f * Time.deltaTime;
             transform.position = posy;
@@ -349,15 +449,19 @@ public class Enemy : MonoBehaviour {
             getKOd();
             return;
         }
-        misc_counter += Time.deltaTime;
+        stop_watch += Time.deltaTime;
     }
 
     void patrolUpdate() {
         // Move along patrol route
+        if (current_patrol_point != null && (!waiting || !wait_at_points)) {
+            mesh_agent.destination = current_patrol_point.transform.position;
+        }
+        /*
         if (current_patrol_point != null) {
             mesh_agent.destination = current_patrol_point.transform.position;
         }
-
+         */
         // Check if player can now be seen
         if (playerInFieldOfView()) {
             detectPlayer();
@@ -375,10 +479,10 @@ public class Enemy : MonoBehaviour {
 
     bool playerInFieldOfView() {
         RaycastHit see_player;
-        Vector3 to_player = MovementController.player.transform.position - transform.position;
+        Vector3 to_player = player.transform.position - transform.position;
         Physics.Raycast(this.transform.position, to_player, out see_player, player_and_walls);
-        if (Vector3.Angle(this.transform.forward, to_player) < detect_angle &&
-                see_player.collider.gameObject.tag == "Player" && see_player.distance < detect_range) {
+        if (Vector3.Angle(transform.forward, to_player) < detect_angle &&
+                see_player.collider.gameObject.tag == player.tag && see_player.distance < detect_range) {
             Debug.DrawRay(this.transform.position, to_player);
             return true;
         }
@@ -457,8 +561,11 @@ public class Enemy : MonoBehaviour {
 
     void detectPlayer() {
         if (playerInFieldOfView()) {
+            //    if (current_state != EnemyState.SEE_PLAYER)
+            AudioController.audioPlayer.spotSound();
             current_state = EnemyState.SEE_PLAYER;
             this.GetComponent<Renderer>().material.color = surprised_color;
+
         }
     }
 
@@ -471,37 +578,114 @@ public class Enemy : MonoBehaviour {
         }
     }
 
+    void lookAround() {
+        if (wait_at_points) {
+            if (!looking) {
+                looking = true;
+                mesh_agent.updateRotation = false;
+                //  mesh_agent.updatePosition = false;
+                mesh_agent.Stop();
+                body.freezeRotation = false;
+            }
+            if (Quaternion.Angle(transform.rotation, look_target) < 3) {
+                looking = false;
+                mesh_agent.Warp(transform.position);
+                mesh_agent.Resume();
+                mesh_agent.destination = transform.position;
+                if (!looker)
+                    mesh_agent.updateRotation = true;
+                mesh_agent.updatePosition = true;
+                body.freezeRotation = true;
+                looking_right_way = true;
+            } else {
+                transform.rotation = Quaternion.RotateTowards(transform.rotation, look_target, Time.deltaTime * 200);
+            }
+        }
+    }
+
     public void setPatrolPoint(GameObject new_patrol_point) {
         if (current_state == EnemyState.PATROL) {
-            current_patrol_point = new_patrol_point;
+            if (looker) {
+                if (!waiting && looking_right_way) {
+                    mesh_agent.updateRotation = false;
+                    GameObject look_point = look_points.FirstOrDefault();
+                    look_points.Remove(look_points.FirstOrDefault());
+                    look_points.Add(look_point);
+                    //  look_target = Quaternion.FromToRotation(transform.forward, look_point.transform.position - transform.position);
+                    look_target.SetLookRotation(look_point.transform.position - transform.position);
+                    waiting = true;
+                    looking = false;
+                    looking_right_way = false;
+                    wait_time = 0;
+                }
+                return;
+
+            } else {
+                look_target = current_patrol_point.transform.rotation;
+                current_patrol_point = new_patrol_point;
+                original_patrol_point = current_patrol_point;
+                if (wait_at_points && !waiting) {
+                    waiting = true;
+                    looking = false;
+                    looking_right_way = false;
+                    wait_time = 0;
+                    return;
+                }
+            }
         } else if (search_path.Count > 0) {
             GameObject next_point = search_path.FirstOrDefault();
             if (current_patrol_point == next_point) {
                 search_path.Remove(next_point);
                 if (search_path.Count() == 0) {
-                    resumePatrol();
+                    if (current_state == EnemyState.INVESTIGATE && current_patrol_point != original_patrol_point)
+                        current_state = EnemyState.SEARCHING;
+                    else
+                        resumePatrol();
                     return;
                 }
                 current_patrol_point = search_path.FirstOrDefault();
             }
         }
+        waiting = false;
     }
 
     public void investigate(GameObject new_point) {
-        if (current_state != EnemyState.INVESTIGATE && current_state != EnemyState.PATROL_RETURN) {
-            current_state = EnemyState.INVESTIGATE;
-            original_patrol_point = current_patrol_point;
-        } else if (investigate_point != null) {
+        regainMoveControl();
+        waiting = false;
+        AudioController.audioPlayer.whatSound();
+        if (current_state != EnemyState.INVESTIGATE && current_state != EnemyState.PATROL_RETURN && current_state != EnemyState.SEARCHING) {
+            if (!looker)
+                original_patrol_point = current_patrol_point;
+        }
+        else if (investigate_point != null) {
             investigate_point.GetComponent<PatrolPoint>().waiting = false;
         }
-
+        current_state = EnemyState.INVESTIGATE;
         investigate_point = new_point;
         temp_waypoint = Instantiate(waypoint_prefab, transform.position, Quaternion.identity) as GameObject;
         temp_waypoint.name = "temp_pos" + this.gameObject.name;
         search_path.Clear();
     }
 
+    public void die() {
+
+        if (current_state != EnemyState.DEAD) {
+            dead = true;
+            current_state = EnemyState.DEAD;
+            getKOd();
+            GameObject hat = gameObject.transform.GetChild(1).gameObject;
+            hat.GetComponent<Renderer>().material = gold;
+            //  GetComponentInChildren<Renderer>().material = gold;
+            GetComponent<Renderer>().material = white;
+            released();
+
+        }
+        //      body.AddForceAtPosition(Vector3.up * 800 * Time.deltaTime, transform.position + transform.up);
+    }
+
     public void resumePatrol() {
+        waiting = false;
+        looking_right_way = true;
         if (current_state != EnemyState.PATROL_RETURN && current_state != EnemyState.PATROL) {
             search_path.Clear();
             current_state = EnemyState.PATROL_RETURN;
@@ -543,5 +727,17 @@ public class Enemy : MonoBehaviour {
             current_dist -= next.distance;
         }
         possible_path.Remove(current_path_point);
+    }
+
+    void OnCollisionEnter(Collision coll) {
+        if (coll.gameObject.tag == "Player" && (current_state == EnemyState.PATROL||current_state== EnemyState.PATROL_RETURN|| current_state==EnemyState.SEARCHING || current_state==EnemyState.INVESTIGATE)) {
+            mesh_agent.updateRotation = false;
+            mesh_agent.destination = transform.position;
+            body.freezeRotation = false;
+            touched_player = true;
+            current_state = EnemyState.SEE_PLAYER;
+        }
+        if (coll.gameObject.tag == "Ground" && current_state == EnemyState.KO)
+            AudioController.audioPlayer.hitGround();
     }
 }

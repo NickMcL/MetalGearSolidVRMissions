@@ -124,11 +124,11 @@ public class MovementController : MonoBehaviour {
                 body.velocity = Vector3.zero;
                 if (movementState.AGAINST_WALL == move_state) {
                     knock_lock = true;
-
                     Knock();
                 }
-                else
+                else {
                     punchCheck();
+                }
                 Invoke("unlockKnock", 0.3f); //prevents knock spam
             }
         }
@@ -146,8 +146,9 @@ public class MovementController : MonoBehaviour {
                 }
                 choke_timer = 0.1f;
             }
-            else
+            else {
                 choke_timer -= Time.deltaTime;
+            }
             if (choke_count > 10) {
                 victim.GetComponent<Enemy>().die();
                 choke_count = 0;
