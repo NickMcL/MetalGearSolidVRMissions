@@ -562,7 +562,7 @@ public class Enemy : MonoBehaviour {
     }
 
     void detectPlayer() {
-        if (playerInFieldOfView()) {
+        if (playerInFieldOfView() && player.GetComponent<MovementController>().god_mode == false) {
             //    if (current_state != EnemyState.SEE_PLAYER)
             AudioController.audioPlayer.spotSound();
             current_state = EnemyState.SEE_PLAYER;

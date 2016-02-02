@@ -12,10 +12,13 @@ public class MovementController : MonoBehaviour {
     const KeyCode CRAWL_KEY = KeyCode.Q;
     const KeyCode GRAB_KEY = KeyCode.S;
     const KeyCode KNOCK_KEY = KeyCode.X;
+    const KeyCode GOD_KEY = KeyCode.I;
     float poscount = 0;
     bool knock_lock = false;
     bool flip_lock = false;
+    public bool god_mode = false;
     public LayerMask enemy_layer;
+    float invincible_delay = 0;
     GameObject victim;
     // Player collider values
     Vector3 PLAYER_STANDING_COLLIDER_CENTER = new Vector3(0f, 0.5f, 0f);
@@ -61,6 +64,7 @@ public class MovementController : MonoBehaviour {
     public float unspawn_duration = 0.5f;
     public Vector3 spawn_sphere_max_size = new Vector3(1.5f, 1.5f, 1.5f);
     public Material spawn_sphere_material;
+    Material head_material;
     public GameObject spawn_sphere;
     bool spawning_player;
     bool unspawning_player;
@@ -74,7 +78,9 @@ public class MovementController : MonoBehaviour {
     void Start() {
         body = gameObject.GetComponent<Rigidbody>();
         initPositionLimits();
+        GameObject head = gameObject.transform.GetChild(0).gameObject;
 
+        head_material = head.GetComponent<Renderer>().material;
         BoxCollider player_collider = gameObject.GetComponent<BoxCollider>();
         player_collider.center = PLAYER_STANDING_COLLIDER_CENTER;
         player_collider.size = PLAYER_STANDING_COLLIDER_SIZE;
@@ -88,11 +94,29 @@ public class MovementController : MonoBehaviour {
 
     // Update is called once per frame
     void Update() {
+        if (Time.timeScale != 1)
+            return;
         if (spawning_player) {
             growSpawnSphere();
         }
         if (unspawning_player) {
             shrinkSpawnSphere();
+        }
+        if (invincible_delay > 0) {
+            invincible_delay -= Time.deltaTime;
+            if (invincible_delay < 0)
+                invincible_delay = 0;
+        }
+        if (Input.GetKey(GOD_KEY) && invincible_delay == 0) {
+            god_mode = !god_mode;
+            invincible_delay = 0.5f;
+GameObject head = gameObject.transform.GetChild(0).gameObject;
+            if (god_mode) {
+                
+                head.GetComponent<Renderer>().material = spawn_sphere_material;
+            } else {
+                head.GetComponent<Renderer>().material = head_material;
+            }
         }
         if (!CameraController.cam_control.playerHasControl() || CameraController.cam_control.game_paused) {
             body.velocity = Vector3.zero;
@@ -109,8 +133,7 @@ public class MovementController : MonoBehaviour {
         if (!lockControlsIfNeeded()) {
             if (under_obstacle_last_frame) {
                 updateUnderObstacleTransformFromInput();
-            }
-            else {
+            } else {
                 setVelocityFromInput();
                 updateWallMovement();
                 updateForwardDirection();
@@ -125,8 +148,7 @@ public class MovementController : MonoBehaviour {
                 if (movementState.AGAINST_WALL == move_state) {
                     knock_lock = true;
                     Knock();
-                }
-                else {
+                } else {
                     punchCheck();
                 }
                 Invoke("unlockKnock", 0.3f); //prevents knock spam
@@ -145,8 +167,7 @@ public class MovementController : MonoBehaviour {
                     Invoke("unlockKnock", 0.1f);
                 }
                 choke_timer = 0.1f;
-            }
-            else {
+            } else {
                 choke_timer -= Time.deltaTime;
             }
             if (choke_count > 10) {
@@ -184,7 +205,7 @@ public class MovementController : MonoBehaviour {
                 victim = hit_info.rigidbody.gameObject;
                 if (victim.GetComponent<Enemy>().current_state != EnemyState.KO &&
                         victim.GetComponent<Enemy>().current_state != EnemyState.BEING_FLIPPED) {
-                            AudioController.audioPlayer.punchSound();
+                    AudioController.audioPlayer.punchSound();
                     victim.GetComponent<Enemy>().getPunched();
                     Vector3 fist = (victim.transform.position - transform.position) * 50f;
                     victim.GetComponent<Rigidbody>().AddForceAtPosition(fist, victim.transform.position + victim.transform.up);

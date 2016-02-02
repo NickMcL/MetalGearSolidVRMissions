@@ -7,7 +7,7 @@ public class SceneNames : MonoBehaviour {
     public static string LEVEL_FINISH = "_Level_Finish";
     public static string MISSION_FAILED = "_Mission_Failed";
     public static string LEVEL_1 = "_Level_1";
-    public static string LEVEL_2 = "_Level_2_NM";
+    public static string LEVEL_2 = "_Level_2F";
     public static string LEVEL_3 = "_Level_3";
     public static string CUSTOM_NM = "_Level_Custom_NM";
     public static string CUSTOM_AJ = "Custom_Level_AJ";
